@@ -51,6 +51,7 @@ h2{font-size:1.25rem;margin:0 0 6px;letter-spacing:-.01em}
 .row .btn{flex:1}
 
 .notice{border-left:4px solid var(--signal);background:var(--signal-soft);padding:12px 14px;font-size:.9rem;border-radius:0 var(--r) var(--r) 0;margin:0 0 20px}
+.notice.test{border-color:#5B6878;background:#E9EDF2}
 .notice.stop{border-color:var(--stop);background:var(--stop-soft)}
 
 /* route picker */
@@ -143,6 +144,7 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:10px 0 30px
 </header>
 
 <main class="wrap">
+  <div id="testBanner"></div>
 
   <!-- 1. 본인 확인 -->
   <section class="screen on" id="s-verify">
@@ -316,8 +318,15 @@ $('verifyForm').addEventListener('submit', async e => {
   } catch (err) { toast(err.message); }
 });
 
+function testBanner() {
+  $('testBanner').innerHTML = S.data && S.data.testMode
+    ? '<div class="notice test"><b>테스트 모드</b> 신청 기간·변경 기한·정원 제한 없이 동작합니다. 테스트 신청은 정원과 관리자 명단에 반영되지 않습니다.</div>'
+    : '';
+}
+
 function route() {
   const d = S.data;
+  testBanner();
   if (d.application) return renderMine();
   if (d.period.state === 'before') return toast(`신청은 ${d.period.openAt}부터 가능합니다.`);
   if (d.period.state === 'after') return toast('신규 신청 기간이 종료되었습니다.');
@@ -489,12 +498,14 @@ function renderDone(action) {
   $('doneLead').textContent = `${a.changeDeadline} 23:59까지 같은 판매코드와 이름으로 접속하면 과정을 변경할 수 있습니다.`;
   $('doneSheet').innerHTML = summary(a, d.applicant, { phone: a.phone });
   $('ttDone').innerHTML = timetable(a.slot, true);
+  testBanner();
   S.selected = null;
   show('done');
 }
 
 $('restart').addEventListener('click', () => {
   S.data = null; S.selected = null;
+  testBanner();
   $('verifyForm').reset();
   $('ttSelect').innerHTML = timetable();
   show('verify');
