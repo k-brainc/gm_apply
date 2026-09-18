@@ -9,8 +9,8 @@
 <style>
 :root{
   --ink:#1E2A38; --ink-2:#34445A; --paper:#F5F7FA; --white:#FFFFFF;
-  --line:#D6DCE4; --muted:#5B6878; --signal:#F2A900; --signal-soft:#FFF4D1;
-  --go:#1F7A55; --stop:#B83A2E; --r:6px;
+  --line:#D6DCE4; --track:#E3E8EE; --muted:#5B6878;
+  --signal:#F2A900; --signal-soft:#FFF4D1; --go:#1F7A55; --stop:#B83A2E; --r:6px;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:15px;line-height:1.55;word-break:keep-all}
@@ -19,65 +19,120 @@ button,input,select{font:inherit;color:inherit}
 .wrap{max-width:1240px;margin:0 auto;padding:0 24px}
 .num{font-variant-numeric:tabular-nums}
 
-.top{background:var(--ink);color:#fff;padding:18px 0}
-.top .wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.top h1{margin:0;font-size:1.2rem;font-weight:800;flex:1}
+.top{background:var(--ink);color:#fff;padding:16px 0}
+.top .wrap{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.top h1{margin:0;font-size:1.15rem;font-weight:800;flex:1}
 .top small{color:#B9C4D2}
-.btn{height:38px;padding:0 14px;border-radius:var(--r);border:1.5px solid var(--ink);background:var(--ink);color:#fff;font-weight:700;cursor:pointer}
-.btn.light{background:transparent;border-color:#7F8FA3;color:#fff}
-.btn.ghost{background:var(--white);color:var(--ink);border-color:var(--line)}
+.top label{display:flex;align-items:center;gap:6px;font-size:.86rem;color:#D8E0EA;cursor:pointer}
+.btn{height:36px;padding:0 14px;border-radius:var(--r);border:1.5px solid #7F8FA3;background:transparent;color:#fff;font-weight:700;cursor:pointer}
+.btn.solid{background:var(--ink);border-color:var(--ink)}
 
-/* login */
 .login{max-width:360px;margin:12vh auto;background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:28px}
 .login h2{margin:0 0 16px;font-size:1.15rem}
 .login input{width:100%;height:46px;padding:0 12px;border:1.5px solid var(--line);border-radius:var(--r);margin-bottom:12px}
 .login .btn{width:100%;height:46px}
+.err{color:var(--stop);font-size:.88rem;min-height:1.2em;margin:6px 0 0}
 
-/* headline total */
-.total{display:grid;grid-template-columns:auto 1fr;gap:10px 32px;align-items:end;padding:28px 0 20px}
-.total .big{font-size:3rem;font-weight:800;line-height:1;letter-spacing:-.03em}
-.total .big span{font-size:1.4rem;color:var(--muted);font-weight:600}
-.gauge{height:14px;background:#E3E8EE;border-radius:7px;overflow:hidden}
-.gauge i{display:block;height:100%;background:var(--ink)}
-.total p{margin:6px 0 0;color:var(--muted);font-size:.9rem}
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+h2.sec{font-size:1.02rem;margin:0 0 14px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+h2.sec small{color:var(--muted);font-weight:500;font-size:.84rem}
+.block{margin-top:24px}
 
-h2.sec{font-size:1rem;margin:28px 0 10px;display:flex;align-items:baseline;gap:10px}
-h2.sec small{color:var(--muted);font-weight:500}
+/* KPI */
+.kpi{display:grid;grid-template-columns:auto 1fr;gap:32px;align-items:center;margin-top:24px}
+.donut{position:relative;width:188px;height:188px}
+.donut svg{transform:rotate(-90deg)}
+.donut .c{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.donut .c b{font-size:2.3rem;font-weight:800;letter-spacing:-.03em;line-height:1}
+.donut .c span{font-size:.86rem;color:var(--muted);margin-top:4px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat{border-top:3px solid var(--ink);padding-top:10px}
+.stat.warn{border-color:var(--signal)}
+.stat.stop{border-color:var(--stop)}
+.stat.go{border-color:var(--go)}
+.stat b{display:block;font-size:1.9rem;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.stat b small{font-size:.95rem;color:var(--muted);font-weight:600}
+.stat span{font-size:.86rem;color:var(--muted)}
+.split{margin-top:18px;display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.split-row{display:flex;align-items:center;gap:10px;font-size:.88rem}
+.split-row .lb{width:36px;font-weight:700}
+.split-row .track{flex:1;height:10px;background:var(--track);border-radius:5px;overflow:hidden}
+.split-row .track i{display:block;height:100%;background:var(--ink-2)}
+.split-row .v{width:110px;text-align:right;color:var(--muted)}
+.period{margin-top:14px;font-size:.86rem;color:var(--muted)}
 
-.panel{background:var(--white);border:1px solid var(--line);border-radius:var(--r);overflow-x:auto}
+/* seat timeline */
+.timeline{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px}
+.tl-region{flex:none}
+.tl-head{border-bottom:3px solid var(--ink);padding-bottom:6px;margin-bottom:12px;display:flex;justify-content:space-between;gap:10px;cursor:pointer}
+.tl-head b{font-size:1.02rem}
+.tl-head span{font-size:.8rem;color:var(--muted);white-space:nowrap}
+.tl-region.sel .tl-head{border-color:var(--signal)}
+.tl-days{display:flex;gap:12px}
+.tl-day{display:flex;flex-direction:column;align-items:center}
+.tanks{display:flex;gap:6px}
+.tank-wrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+.tank{position:relative;width:46px;height:132px;border:1.5px solid var(--line);background:var(--track);border-radius:5px;overflow:hidden;cursor:pointer;padding:0}
+.tank .fill{position:absolute;left:0;right:0;bottom:0;background:var(--ink-2);transition:height .4s}
+.tank.hi .fill{background:var(--signal)}
+.tank.full .fill{background:var(--stop)}
+.tank.closed{background:repeating-linear-gradient(135deg,#EEF1F5 0 6px,#E1E6EC 6px 12px)}
+.tank.closed .fill{background:#9AA6B4}
+.tank .pct{position:absolute;left:0;right:0;top:6px;font-size:.78rem;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;color:var(--ink)}
+.tank.sel{outline:3px solid var(--signal);outline-offset:2px}
+.tank-lb{font-size:.74rem;color:var(--muted);text-align:center;line-height:1.25;font-variant-numeric:tabular-nums}
+.tank-lb b{display:block;color:var(--ink);font-size:.8rem}
+.tl-date{margin-top:8px;font-weight:700;font-size:.88rem;font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:14px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+
+/* region rings */
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.rings{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.ring{border:1.5px solid var(--line);border-radius:var(--r);background:var(--white);padding:14px 8px;text-align:center;cursor:pointer}
+.ring.sel{border-color:var(--signal);background:var(--signal-soft)}
+.ring .mini{position:relative;width:78px;height:78px;margin:0 auto 8px}
+.ring .mini svg{transform:rotate(-90deg)}
+.ring .mini b{position:absolute;inset:0;display:grid;place-items:center;font-size:.95rem;font-weight:800;font-variant-numeric:tabular-nums}
+.ring h3{margin:0;font-size:.98rem}
+.ring p{margin:2px 0 0;font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* bar charts */
+.cols{display:flex;align-items:flex-end;gap:6px;height:170px;padding-top:18px;border-bottom:1.5px solid var(--line);overflow-x:auto}
+.col{flex:1 0 26px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative}
+.col i{display:block;width:100%;max-width:34px;background:var(--ink-2);border-radius:3px 3px 0 0;min-height:2px}
+.col em{font-style:normal;font-size:.74rem;font-weight:700;margin-bottom:3px;font-variant-numeric:tabular-nums}
+.col-labels{display:flex;gap:6px;overflow:hidden}
+.col-labels span{flex:1 0 26px;font-size:.7rem;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.hbars{display:flex;flex-direction:column;gap:8px}
+.hbar{display:grid;grid-template-columns:130px 1fr 36px;gap:10px;align-items:center;font-size:.86rem}
+.hbar .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar .track{height:14px;background:var(--track);border-radius:3px;overflow:hidden}
+.hbar .track i{display:block;height:100%;background:var(--ink-2)}
+.hbar b{text-align:right;font-variant-numeric:tabular-nums}
+.empty{padding:28px;text-align:center;color:var(--muted);font-size:.9rem}
+
+/* list */
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.filters select,.filters input{height:38px;border:1.5px solid var(--line);border-radius:var(--r);padding:0 10px;background:var(--white)}
+.filters input{flex:1;min-width:200px}
+.filters .clear{height:38px;border:0;background:none;color:var(--muted);text-decoration:underline;cursor:pointer}
+.panel{background:var(--white);border:1px solid var(--line);border-radius:var(--r);overflow:auto;max-height:560px}
 table{width:100%;border-collapse:collapse}
 th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
 th{background:#FAFBFC;color:var(--muted);font-weight:600;font-size:.84rem;position:sticky;top:0}
 tbody tr:last-child td{border-bottom:0}
 td.r,th.r{text-align:right}
-tr.clickable{cursor:pointer}
-tr.clickable:hover td{background:#F7F9FB}
-tr.sel td{background:var(--signal-soft)!important}
-
-.bar{display:flex;align-items:center;gap:6px;min-width:96px}
-.bar .track{flex:1;height:8px;background:#E3E8EE;border-radius:4px;overflow:hidden}
-.bar .track i{display:block;height:100%;background:var(--ink-2)}
-.bar.hi .track i{background:var(--signal)}
-.bar.full .track i{background:var(--stop)}
-.bar b{width:46px;text-align:right;font-variant-numeric:tabular-nums;font-size:.88rem}
-
-.tag{display:inline-block;font-size:.78rem;font-weight:700;padding:1px 8px;border-radius:4px}
-.tag.open{background:#E3F2EA;color:var(--go)}
-.tag.full{background:#F8E4E1;color:var(--stop)}
-.tag.closed{background:#E3E8EE;color:var(--muted)}
-
-.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
-.filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
-.filters select,.filters input{height:38px;border:1.5px solid var(--line);border-radius:var(--r);padding:0 10px;background:var(--white)}
-.filters input{flex:1;min-width:180px}
-.chk{display:flex;align-items:center;gap:6px;font-size:.88rem;color:var(--muted);margin:0 0 10px}
-.tag.test{background:#E9EDF2;color:var(--ink-2)}
-.empty{padding:28px;text-align:center;color:var(--muted)}
-.list{max-height:560px;overflow:auto}
+.tag{display:inline-block;font-size:.74rem;font-weight:700;padding:1px 7px;border-radius:4px;background:#E9EDF2;color:var(--ink-2)}
 footer{padding:30px 0;color:var(--muted);font-size:.82rem}
-.err{color:var(--stop);font-size:.88rem;min-height:1.2em;margin:0}
 
-@media (max-width:900px){.grid2{grid-template-columns:1fr}.total{grid-template-columns:1fr}}
+@media (max-width:1000px){
+  .kpi{grid-template-columns:1fr;justify-items:center}
+  .stats{grid-template-columns:repeat(2,1fr);width:100%}
+  .grid-2{grid-template-columns:1fr}
+  .rings{grid-template-columns:repeat(3,1fr)}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
@@ -86,9 +141,10 @@ footer{padding:30px 0;color:var(--muted);font-size:.82rem}
   <div class="wrap">
     <h1 id="title">교육신청 관리자</h1>
     <small id="stamp"></small>
-    <button class="btn light" id="refresh" hidden>새로고침</button>
-    <button class="btn light" id="csv" hidden>CSV 내려받기</button>
-    <button class="btn light" id="logout" hidden>로그아웃</button>
+    <label id="testWrap" hidden><input type="checkbox" id="fTest" checked> <span id="fTestLabel">테스트 포함</span></label>
+    <button class="btn" id="refresh" hidden>새로고침</button>
+    <button class="btn" id="csv" hidden>CSV 내려받기</button>
+    <button class="btn" id="logout" hidden>로그아웃</button>
   </div>
 </header>
 
@@ -96,68 +152,85 @@ footer{padding:30px 0;color:var(--muted);font-size:.82rem}
   <h2>관리자 로그인</h2>
   <form id="loginForm">
     <input type="password" id="pw" placeholder="관리자 비밀번호" autocomplete="current-password" aria-label="관리자 비밀번호">
-    <button class="btn" type="submit">조회하기</button>
+    <button class="btn solid" type="submit">조회하기</button>
     <p class="err" id="loginErr" role="alert"></p>
   </form>
 </section>
 
 <main class="wrap" id="dash" hidden>
-  <div class="total">
-    <div class="big num" id="totalBig"></div>
+
+  <!-- 전체 현황 -->
+  <section class="card kpi">
+    <div class="donut" id="donut"></div>
     <div>
-      <div class="gauge" aria-hidden="true"><i id="totalGauge"></i></div>
-      <p id="totalText"></p>
+      <div class="stats" id="stats"></div>
+      <div class="split" id="split"></div>
+      <p class="period" id="periodText"></p>
     </div>
+  </section>
+
+  <!-- 일정별 좌석 -->
+  <section class="card block">
+    <h2 class="sec">일정별 좌석 현황 <small>막대를 누르면 해당 과정 명단이 아래에 걸러집니다</small></h2>
+    <div class="timeline" id="timeline"></div>
+    <div class="legend">
+      <span><i style="background:var(--ink-2)"></i>모집 중</span>
+      <span><i style="background:var(--signal)"></i>80% 이상</span>
+      <span><i style="background:var(--stop)"></i>정원 마감</span>
+      <span><i style="background:#9AA6B4"></i>신청 종료</span>
+    </div>
+  </section>
+
+  <!-- 지역별 -->
+  <section class="card block">
+    <h2 class="sec">지역별 모집률 <small>카드를 누르면 지역 명단이 걸러집니다</small></h2>
+    <div class="rings" id="rings"></div>
+  </section>
+
+  <div class="grid-2 block">
+    <section class="card">
+      <h2 class="sec">일자별 신청 추이 <small id="trendNote"></small></h2>
+      <div id="trend"></div>
+    </section>
+    <section class="card">
+      <h2 class="sec">전시장별 신청 인원 <small>상위 10곳</small></h2>
+      <div id="dealers"></div>
+    </section>
   </div>
 
-  <div class="grid2">
-    <div>
-      <h2 class="sec">지역별 현황 <small>행을 누르면 명단이 걸러집니다</small></h2>
-      <div class="panel"><table>
-        <thead><tr><th>지역</th><th class="r">과정</th><th class="r">정원</th><th class="r">신청</th><th class="r">잔여</th><th>모집률</th></tr></thead>
-        <tbody id="regionBody"></tbody>
-      </table></div>
-
-      <h2 class="sec">과정별 현황</h2>
-      <div class="panel"><table>
-        <thead><tr><th>지역</th><th>일자</th><th>구분</th><th class="r">신청/정원</th><th>모집률</th><th>상태</th></tr></thead>
-        <tbody id="sessionBody"></tbody>
-      </table></div>
+  <!-- 명단 -->
+  <section class="block">
+    <h2 class="sec">신청자 명단 <small id="listCount"></small></h2>
+    <div class="filters">
+      <select id="fRegion" aria-label="지역"></select>
+      <select id="fSession" aria-label="과정"></select>
+      <input id="fQuery" placeholder="이름, 판매코드, 전시장, 연락처 검색" aria-label="검색">
+      <button class="clear" id="clearFilter" type="button">필터 해제</button>
     </div>
+    <div class="panel"><table>
+      <thead><tr><th>이름</th><th>판매코드</th><th>연락처</th><th>지역</th><th>전시장명</th><th>과정</th><th>신청일시</th><th class="r">변경</th></tr></thead>
+      <tbody id="appBody"></tbody>
+    </table></div>
+  </section>
 
-    <div>
-      <h2 class="sec">신청자 명단 <small id="listCount"></small></h2>
-      <div class="filters">
-        <select id="fRegion" aria-label="지역"></select>
-        <select id="fSession" aria-label="과정"></select>
-        <input id="fQuery" placeholder="이름, 판매코드, 전시장, 연락처 검색" aria-label="검색">
-      </div>
-      <label class="chk"><input type="checkbox" id="fTest" checked> <span id="fTestLabel">테스트 신청 포함 (집계·명단에 함께 표시)</span></label>
-      <div class="panel list"><table>
-        <thead><tr><th>이름</th><th>판매코드</th><th>연락처</th><th>지역</th><th>전시장명</th><th>과정</th><th>신청일시</th><th class="r">변경</th></tr></thead>
-        <tbody id="appBody"></tbody>
-      </table></div>
-    </div>
-  </div>
   <footer id="foot"></footer>
 </main>
 
 <script>
-/* ▼ Apps Script 웹 앱 배포 주소(/exec)를 입력하세요 */
+/* ▼ Apps Script 웹 앱 배포 주소(/exec) */
 const API_URL = 'https://script.google.com/macros/s/AKfycbwYsk6l-NNv6ca51MjtNKRYHEptvWC_kKHBEfV60GSWWW8glM_BggJ9HSaFD6wX7Kt9/exec';
 
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 : 0;
-let D = null;
-let timer = null;
+let D = null, timer = null;
 
+/* ---------- 데이터 ---------- */
 async function load() {
-  const password = sessionStorage.getItem('eduAdminPw') || '';
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'adminDashboard', password }),
+    body: JSON.stringify({ action: 'adminDashboard', password: sessionStorage.getItem('eduAdminPw') || '' }),
   });
   const json = await res.json();
   if (!json.ok) throw new Error(json.message);
@@ -165,26 +238,7 @@ async function load() {
   render();
 }
 
-$('loginForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  sessionStorage.setItem('eduAdminPw', $('pw').value);
-  $('loginErr').textContent = '';
-  try { await load(); enter(); }
-  catch (err) { sessionStorage.removeItem('eduAdminPw'); $('loginErr').textContent = err.message; }
-});
-
-function enter() {
-  $('login').hidden = true; $('dash').hidden = false;
-  ['refresh','csv','logout'].forEach(id => $(id).hidden = false);
-  clearInterval(timer);
-  timer = setInterval(() => load().catch(() => {}), 60000); // 1분마다 자동 갱신
-}
-
-$('refresh').onclick = () => load().catch(e => alert(e.message));
-$('logout').onclick = () => { sessionStorage.removeItem('eduAdminPw'); location.reload(); };
-
-/* 테스트 신청 포함 여부에 따라 집계용 과정·명단을 만든다 */
-function withTest() { return $('fTest').checked; }
+const withTest = () => $('fTest').checked;
 function sessionsView() {
   if (!withTest()) return D.sessions;
   const add = {};
@@ -195,74 +249,143 @@ function sessionsView() {
     return Object.assign({}, s, { applied, status });
   });
 }
-function applicantsView() {
-  return withTest() ? D.applicants.concat(D.testApplicants || []) : D.applicants;
-}
+const applicantsView = () => withTest() ? D.applicants.concat(D.testApplicants || []) : D.applicants;
 
-function barCell(applied, cap) {
-  const r = pct(applied, cap);
-  const cls = applied >= cap && cap ? 'full' : r >= 80 ? 'hi' : '';
-  return `<div class="bar ${cls}"><span class="track"><i style="width:${Math.min(r,100)}%"></i></span><b>${r}%</b></div>`;
-}
-
-function regions() {
+function regionsOf(SV) {
   const map = new Map();
-  sessionsView().forEach(s => {
-    const r = map.get(s.region) || { no: s.regionNo, name: s.region, count: 0, cap: 0, applied: 0 };
-    r.count++; r.cap += s.capacity; r.applied += s.applied;
+  SV.forEach(s => {
+    const r = map.get(s.region) || { no: s.regionNo, name: s.region, venue: s.venue, sessions: [], cap: 0, applied: 0 };
+    r.sessions.push(s); r.cap += s.capacity; r.applied += s.applied;
     map.set(s.region, r);
   });
   return [...map.values()].sort((a, b) => a.no - b.no);
 }
 
-function render() {
-  $('title').textContent = D.title + ' 신청 관리';
-  $('stamp').textContent = '갱신 ' + D.generatedAt.slice(5, 16);
+const level = s => s.status === 'closed' ? 'closed' : s.status === 'full' ? 'full' : pct(s.applied, s.capacity) >= 80 ? 'hi' : '';
 
-  const SV = sessionsView();
+/* ---------- 도넛 ---------- */
+function ring(size, stroke, ratio, color) {
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r, v = Math.min(ratio, 1);
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--track)" stroke-width="${stroke}"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}"
+      stroke-dasharray="${c * v} ${c}" stroke-linecap="${v > 0 && v < 1 ? 'round' : 'butt'}"/></svg>`;
+}
+const ringColor = (a, cap) => a >= cap && cap ? 'var(--stop)' : pct(a, cap) >= 80 ? 'var(--signal)' : 'var(--ink)';
+
+/* ---------- 렌더 ---------- */
+function render() {
+  const SV = sessionsView(), AV = applicantsView();
   const cap = SV.reduce((a, s) => a + s.capacity, 0);
   const applied = SV.reduce((a, s) => a + s.applied, 0);
   const full = SV.filter(s => s.status === 'full').length;
-  $('fTestLabel').textContent = `테스트 신청 포함 (${(D.testApplicants || []).length}건, 집계·명단에 함께 표시)`;
-  $('totalBig').innerHTML = `${applied}<span> / ${cap}명</span>`;
-  $('totalGauge').style.width = Math.min(pct(applied, cap), 100) + '%';
-  $('totalText').textContent = (withTest() ? '[테스트 포함] ' : '') +
-    `전체 모집률 ${pct(applied, cap)}% · 과정 ${D.sessions.length}개 중 ${full}개 정원 마감 · 취소 ${D.canceled}건 · 신청 기간 ${D.period.openAt} ~ ${D.period.closeAt}`;
+  const hot = SV.filter(s => s.status === 'open' && pct(s.applied, s.capacity) >= 80).length;
+  const today = D.generatedAt.slice(0, 10);
+  const todayCount = AV.filter(a => a.appliedAt.slice(0, 10) === today).length;
+  const nTest = (D.testApplicants || []).length;
 
-  const fr = $('fRegion').value;
-  $('regionBody').innerHTML = regions().map(r => `
-    <tr class="clickable ${fr === r.name ? 'sel' : ''}" data-region="${esc(r.name)}">
-      <td><b>${r.no}. ${esc(r.name)}</b></td><td class="r num">${r.count}</td><td class="r num">${r.cap}</td>
-      <td class="r num"><b>${r.applied}</b></td><td class="r num">${r.cap - r.applied}</td><td>${barCell(r.applied, r.cap)}</td>
-    </tr>`).join('');
-  $('regionBody').querySelectorAll('tr').forEach(tr => tr.onclick = () => {
-    $('fRegion').value = $('fRegion').value === tr.dataset.region ? '' : tr.dataset.region;
-    $('fSession').value = '';
-    render();
+  $('title').textContent = D.title + ' 신청 현황';
+  $('stamp').textContent = '갱신 ' + D.generatedAt.slice(5, 16);
+  $('fTestLabel').textContent = `테스트 포함 (${nTest}건)`;
+
+  // KPI
+  $('donut').innerHTML = ring(188, 18, cap ? applied / cap : 0, ringColor(applied, cap)) +
+    `<div class="c"><b class="num">${pct(applied, cap)}%</b><span class="num">${applied} / ${cap}명</span></div>`;
+  $('stats').innerHTML = `
+    <div class="stat go"><b class="num">${cap - applied}<small> 석</small></b><span>남은 좌석</span></div>
+    <div class="stat warn"><b class="num">${hot}<small> 개</small></b><span>마감 임박 과정 (80% 이상)</span></div>
+    <div class="stat stop"><b class="num">${full}<small> / ${SV.length}</small></b><span>정원 마감 과정</span></div>
+    <div class="stat"><b class="num">${todayCount}<small> 명</small></b><span>오늘 신청</span></div>`;
+  $('split').innerHTML = ['오전','오후'].map(slot => {
+    const ss = SV.filter(s => s.slot === slot);
+    const a = ss.reduce((x, s) => x + s.applied, 0), c = ss.reduce((x, s) => x + s.capacity, 0);
+    return `<div class="split-row"><span class="lb">${slot}</span><span class="track"><i style="width:${Math.min(pct(a,c),100)}%"></i></span><span class="v num">${a} / ${c}명 · ${pct(a,c)}%</span></div>`;
+  }).join('');
+  const close = D.period.closeAt;
+  $('periodText').textContent = (withTest() && nTest ? '테스트 신청 포함 수치 · ' : '') +
+    `신청 기간 ${D.period.openAt} ~ ${close} · 취소 ${D.canceled}건`;
+
+  // 좌석 타임라인
+  const fr = $('fRegion').value, fs = $('fSession').value;
+  $('timeline').innerHTML = regionsOf(SV).map(r => {
+    const days = [];
+    r.sessions.forEach(s => { let d = days.find(x => x.date === s.date); if (!d) days.push(d = { date: s.date, label: s.dateLabel, slots: [] }); d.slots.push(s); });
+    return `<div class="tl-region${fr === r.name ? ' sel' : ''}">
+      <div class="tl-head" data-region="${esc(r.name)}"><b>${esc(r.name)}</b><span class="num">${r.applied}/${r.cap} · ${pct(r.applied, r.cap)}%</span></div>
+      <div class="tl-days">${days.map(d => `<div class="tl-day"><div class="tanks">${
+        ['오전','오후'].map(slot => {
+          const s = d.slots.find(x => x.slot === slot);
+          if (!s) return '';
+          const p = pct(s.applied, s.capacity);
+          return `<div class="tank-wrap">
+            <button class="tank ${level(s)}${fs === s.id ? ' sel' : ''}" data-id="${esc(s.id)}" data-region="${esc(s.region)}"
+              aria-label="${esc(s.region)} ${esc(s.dateLabel)} ${slot} ${s.applied}/${s.capacity}명 ${p}%">
+              <span class="fill" style="height:${Math.min(p, 100)}%"></span><span class="pct">${Math.round(p)}%</span></button>
+            <div class="tank-lb"><b>${slot}</b>${s.applied}/${s.capacity}</div></div>`;
+        }).join('')}</div><div class="tl-date">${esc(d.label)}</div></div>`).join('')}</div></div>`;
+  }).join('');
+  $('timeline').querySelectorAll('.tank').forEach(b => b.onclick = () => {
+    const same = $('fSession').value === b.dataset.id;
+    $('fRegion').value = same ? '' : b.dataset.region;
+    fillFilters();
+    $('fSession').value = same ? '' : b.dataset.id;
+    render(); scrollToList();
+  });
+  $('timeline').querySelectorAll('.tl-head').forEach(h => h.onclick = () => toggleRegion(h.dataset.region));
+
+  // 지역 링
+  $('rings').innerHTML = regionsOf(SV).map(r => `
+    <div class="ring${fr === r.name ? ' sel' : ''}" role="button" tabindex="0" data-region="${esc(r.name)}">
+      <div class="mini">${ring(78, 9, r.cap ? r.applied / r.cap : 0, ringColor(r.applied, r.cap))}<b>${Math.round(pct(r.applied, r.cap))}%</b></div>
+      <h3>${esc(r.name)}</h3>
+      <p>${r.applied} / ${r.cap}명</p><p>잔여 ${r.cap - r.applied}석 · 과정 ${r.sessions.length}개</p>
+    </div>`).join('');
+  $('rings').querySelectorAll('.ring').forEach(el => {
+    el.onclick = () => toggleRegion(el.dataset.region);
+    el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRegion(el.dataset.region); } };
   });
 
-  const label = { open: '모집중', full: '정원 마감', closed: '신청 종료' };
-  const fs = $('fSession').value;
-  $('sessionBody').innerHTML = SV.map(s => `
-    <tr class="clickable ${fs === s.id ? 'sel' : ''}" data-id="${esc(s.id)}">
-      <td>${esc(s.region)}</td><td class="num">${esc(s.dateLabel)}</td><td>${esc(s.slot)}</td>
-      <td class="r num">${s.applied} / ${s.capacity}</td><td>${barCell(s.applied, s.capacity)}</td>
-      <td><span class="tag ${s.status}">${label[s.status]}</span></td>
-    </tr>`).join('');
-  $('sessionBody').querySelectorAll('tr').forEach(tr => tr.onclick = () => {
-    $('fSession').value = $('fSession').value === tr.dataset.id ? '' : tr.dataset.id;
-    render();
-  });
-
+  renderTrend(AV);
+  renderDealers(AV);
   fillFilters();
   renderList();
   $('foot').textContent = `데이터 기준 ${D.generatedAt} · 1분마다 자동 갱신`;
 }
 
+function renderTrend(AV) {
+  const by = {};
+  AV.forEach(a => { const d = a.appliedAt.slice(0, 10); if (d) by[d] = (by[d] || 0) + 1; });
+  const days = Object.keys(by).sort().slice(-21);
+  $('trendNote').textContent = days.length ? `최근 ${days.length}일 · 누적 ${AV.length}명` : '';
+  if (!days.length) { $('trend').innerHTML = '<div class="empty">아직 신청이 없습니다.</div>'; return; }
+  const max = Math.max(...days.map(d => by[d]));
+  $('trend').innerHTML = `<div class="cols">${days.map(d =>
+      `<div class="col"><em>${by[d]}</em><i style="height:${by[d] / max * 100}%"></i></div>`).join('')}</div>
+    <div class="col-labels">${days.map(d => `<span>${+d.slice(5,7)}/${+d.slice(8)}</span>`).join('')}</div>`;
+}
+
+function renderDealers(AV) {
+  const by = {};
+  AV.forEach(a => { const k = a.dealer || '(미기재)'; by[k] = (by[k] || 0) + 1; });
+  const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  if (!top.length) { $('dealers').innerHTML = '<div class="empty">아직 신청이 없습니다.</div>'; return; }
+  const max = top[0][1];
+  $('dealers').innerHTML = `<div class="hbars">${top.map(([n, c]) =>
+    `<div class="hbar"><span class="nm" title="${esc(n)}">${esc(n)}</span><span class="track"><i style="width:${c / max * 100}%"></i></span><b>${c}</b></div>`).join('')}</div>`;
+}
+
+/* ---------- 필터 & 명단 ---------- */
+function toggleRegion(name) {
+  $('fRegion').value = $('fRegion').value === name ? '' : name;
+  $('fSession').value = '';
+  render(); scrollToList();
+}
+function scrollToList() { $('listCount').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+
 function fillFilters() {
   const fr = $('fRegion').value, fs = $('fSession').value;
   $('fRegion').innerHTML = '<option value="">전체 지역</option>' +
-    regions().map(r => `<option ${r.name === fr ? 'selected' : ''} value="${esc(r.name)}">${esc(r.name)}</option>`).join('');
+    regionsOf(D.sessions).map(r => `<option ${r.name === fr ? 'selected' : ''} value="${esc(r.name)}">${esc(r.name)}</option>`).join('');
   $('fSession').innerHTML = '<option value="">전체 과정</option>' +
     D.sessions.filter(s => !fr || s.region === fr)
       .map(s => `<option ${s.id === fs ? 'selected' : ''} value="${esc(s.id)}">${esc(s.region)} ${esc(s.dateLabel)} ${s.slot}</option>`).join('');
@@ -278,10 +401,12 @@ function filtered() {
 
 function renderList() {
   const rows = filtered();
-  $('listCount').textContent = `${rows.length}명`;
+  const fr = $('fRegion').value, fsId = $('fSession').value;
+  const s = fsId && D.sessions.find(x => x.id === fsId);
+  $('listCount').textContent = (s ? `${s.region} ${s.dateLabel} ${s.slot} · ` : fr ? `${fr} · ` : '') + `${rows.length}명`;
   $('appBody').innerHTML = rows.length ? rows.map(a => `
     <tr>
-      <td><b>${esc(a.name)}</b>${a.test ? ' <span class="tag test">테스트</span>' : ''}</td><td class="num">${esc(a.code)}</td><td class="num">${esc(a.phone)}</td>
+      <td><b>${esc(a.name)}</b>${a.test ? ' <span class="tag">테스트</span>' : ''}</td><td class="num">${esc(a.code)}</td><td class="num">${esc(a.phone)}</td>
       <td>${esc(a.region)}</td><td>${esc(a.dealer)}</td>
       <td class="num">${esc(a.dateLabel)} ${esc(a.slot)}</td><td class="num">${esc(a.appliedAt.slice(5, 16))}</td>
       <td class="r num">${a.changes || ''}</td>
@@ -292,16 +417,36 @@ function renderList() {
 $('fRegion').onchange = () => { $('fSession').value = ''; render(); };
 $('fSession').onchange = render;
 $('fQuery').oninput = renderList;
-// 테스트 포함 여부: 기본 켜짐, 마지막 선택을 브라우저에 기억
+$('clearFilter').onclick = () => { $('fRegion').value = ''; $('fSession').value = ''; $('fQuery').value = ''; render(); };
+
 try { const v = localStorage.getItem('eduAdminWithTest'); if (v !== null) $('fTest').checked = v === '1'; } catch (_) {}
 $('fTest').onchange = () => {
   try { localStorage.setItem('eduAdminWithTest', $('fTest').checked ? '1' : '0'); } catch (_) {}
   render();
 };
 
+/* ---------- 로그인 & 기타 ---------- */
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  sessionStorage.setItem('eduAdminPw', $('pw').value);
+  $('loginErr').textContent = '';
+  try { await load(); enter(); }
+  catch (err) { sessionStorage.removeItem('eduAdminPw'); $('loginErr').textContent = err.message; }
+});
+
+function enter() {
+  $('login').hidden = true; $('dash').hidden = false;
+  ['refresh','csv','logout','testWrap'].forEach(id => $(id).hidden = false);
+  clearInterval(timer);
+  timer = setInterval(() => load().catch(() => {}), 60000);
+}
+
+$('refresh').onclick = () => load().catch(e => alert(e.message));
+$('logout').onclick = () => { sessionStorage.removeItem('eduAdminPw'); location.reload(); };
+
 $('csv').onclick = () => {
-  const head = ['신청번호','이름','판매코드','연락처','지역','교육장','전시장명','일자','구분','교육시간','신청일시','변경횟수','최종변경일시'];
-  const rows = filtered().map(a => [a.no, a.name, a.code, a.phone, a.region, a.venue, a.dealer, a.dateLabel, a.slot, a.time, a.appliedAt, a.changes, a.updatedAt]);
+  const head = ['신청번호','이름','판매코드','연락처','지역','교육장','전시장명','일자','구분','교육시간','신청일시','변경횟수','최종변경일시','비고'];
+  const rows = filtered().map(a => [a.no, a.name, a.code, a.phone, a.region, a.venue, a.dealer, a.dateLabel, a.slot, a.time, a.appliedAt, a.changes, a.updatedAt, a.test ? '테스트' : '']);
   const csv = '\uFEFF' + [head, ...rows].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
