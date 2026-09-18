@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
 <title>제품교육 신청</title>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
@@ -100,6 +101,32 @@ h2{font-size:1.35rem;margin:0 0 8px;letter-spacing:-.025em}
 h2::after{content:"";display:block;width:28px;height:4px;border-radius:2px;background:var(--grad);margin-top:8px}
 .lead{color:var(--muted);margin:0 0 20px;font-size:.95rem}
 
+
+/* ---------- 아이콘 ---------- */
+.ic{width:1.05em;height:1.05em;flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.16em}
+.facts dt{display:flex;align-items:center;gap:6px}
+.facts dt .ic{color:#6E9BFF}
+.card-tips li{align-items:flex-start}
+.card-tips .ic{margin-top:.2em;color:var(--brand)}
+.sched-list b{display:flex;gap:8px;align-items:flex-start}
+.sched-list b .ic{color:var(--brand);margin-top:.2em}
+.t-when .ic{opacity:.8;margin-right:4px}
+.t-info dt{display:flex;align-items:center;gap:6px}
+.t-info dt .ic{color:#9AA3AF}
+.tt h3 .ttl{display:flex;align-items:center;gap:8px}
+.tt h3 .ic{color:var(--brand)}
+.panel-head span .ic{color:var(--brand)}
+
+/* ---------- 차량 이미지 밴드 (images/vehicle.jpg 가 있을 때만 표시) ---------- */
+.vehicle-band{position:relative;margin-top:36px;border-radius:var(--r);overflow:hidden;min-height:340px;display:flex;align-items:flex-end;color:#fff;background:var(--black) var(--vehicle) center/cover no-repeat}
+.vehicle-band::before{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(10,11,13,.85) 0%,rgba(10,11,13,.25) 55%,rgba(10,11,13,0) 100%)}
+.vb-text{position:relative;padding:28px 30px}
+.vb-text h3{margin:0;font-size:1.7rem;font-weight:800;letter-spacing:-.03em;line-height:1.2}
+.vb-text h3::after{content:"";display:block;width:40px;height:4px;border-radius:2px;background:#fff;margin-top:12px}
+.vb-text ul{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.9rem;color:rgba(255,255,255,.88)}
+.vb-text li{display:flex;align-items:center;gap:6px}
+@media (max-width:560px){ .vehicle-band{min-height:240px} .vb-text{padding:22px} .vb-text h3{font-size:1.35rem} }
+
 /* ---------- 본인 확인 카드 ---------- */
 .login-card{position:relative;z-index:2;margin-top:-56px;background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:26px}
 .card-tips{list-style:none;margin:16px 0 0;padding:12px 14px;background:var(--paper);border-radius:var(--r-sm);font-size:.86rem;color:var(--muted)}
@@ -124,7 +151,7 @@ h2::after{content:"";display:block;width:28px;height:4px;border-radius:2px;backg
 .sched{margin-top:34px}
 .sched h3{font-size:1.05rem;margin:0 0 12px;letter-spacing:-.01em}
 .sched-list{list-style:none;margin:0;padding:6px 0;background:var(--white);border-radius:var(--r);box-shadow:0 4px 16px rgba(10,11,13,.06)}
-.sched-list li{display:grid;grid-template-columns:80px 1fr;gap:10px;align-items:center;padding:12px 18px}
+.sched-list li{display:grid;grid-template-columns:minmax(120px,auto) 1fr;gap:10px;align-items:center;padding:12px 18px}
 .sched-list li + li{border-top:1px solid #EDF1F6}
 .sched-list b{font-size:1.02rem}
 .sched-list .v{font-size:.8rem;color:var(--muted);display:block;font-weight:400}
@@ -199,7 +226,7 @@ h2::after{content:"";display:block;width:28px;height:4px;border-radius:2px;backg
 .t-cut{position:relative;height:0;border-top:2px dashed var(--line);margin:0 20px}
 .t-cut::before,.t-cut::after{content:"";position:absolute;top:-12px;width:22px;height:22px;border-radius:50%;background:var(--paper)}
 .t-cut::before{left:-32px}.t-cut::after{right:-32px}
-.t-info{margin:0;display:grid;grid-template-columns:88px 1fr;padding:10px 24px 16px}
+.t-info{margin:0;display:grid;grid-template-columns:104px 1fr;padding:10px 24px 16px}
 .t-info dt,.t-info dd{margin:0;padding:8px 0}
 .t-info dt{color:var(--muted);font-size:.86rem}
 .t-info dd{font-weight:600}
@@ -249,6 +276,22 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
 </style>
 </head>
 <body class="at-verify">
+<!-- 아이콘 세트 (자체 제작 라인 아이콘) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.8-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 15.2 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.4"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-alarm" viewBox="0 0 24 24"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.2 1.6M4.5 4.5 2.8 6.2M19.5 4.5l1.7 1.7"/></symbol>
+  <symbol id="i-queue" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 19.5a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.4"/><path d="M16.2 14a4.6 4.6 0 0 1 5 5.5"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8.5h14.5L15 5M20 15.5H5.5L9 19"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.8"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></symbol>
+  <symbol id="i-badge" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><circle cx="8.5" cy="11" r="1.9"/><path d="M5.8 15.8a2.8 2.8 0 0 1 5.4 0M14 10h4M14 13.5h3"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="M3.5 9 5 4.5h14L20.5 9M4.5 9v11h15V9M3.5 9h17M9.5 20v-5h5v5"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M6.5 3.5h3l1.5 4-2 1.3a10 10 0 0 0 6.2 6.2l1.3-2 4 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.5 5.7a2 2 0 0 1 2-2.2z"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M3 15.5V12l2.2-4.3A2 2 0 0 1 7 6.5h9.2a2 2 0 0 1 1.6.8L21 11.5v4"/><path d="M3 11.5h18"/><circle cx="7.2" cy="16" r="2"/><circle cx="16.8" cy="16" r="2"/><path d="M9.2 16h5.6"/></symbol>
+  <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 0 0 4v5h17v-5a2 2 0 0 0 0-4V5.5h-17z"/><path d="M14.5 5.5v11" stroke-dasharray="1.6 2"/></symbol>
+</svg>
+
 
 <header class="hero" id="hero">
   <div class="hero-bg" id="heroBg"></div>
@@ -278,8 +321,8 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
       <h2>신청 대상 확인</h2>
       <p class="lead" style="margin:0">판매코드와 이름을 입력하세요. 이미 신청했다면 신청 내역을 확인하고 변경할 수 있습니다.</p>
       <ul class="card-tips">
-        <li><b>선착순</b><span>과정별 정원이 차면 자동으로 마감됩니다.</span></li>
-        <li><b>변경·취소</b><span>교육일 <span id="tipDays">3</span>일 전까지 이 페이지에서 직접 할 수 있습니다.</span></li>
+        <li><svg class="ic"><use href="#i-queue"/></svg><b>선착순</b><span>과정별 정원이 차면 자동으로 마감됩니다.</span></li>
+        <li><svg class="ic"><use href="#i-swap"/></svg><b>변경·취소</b><span>교육일 <span id="tipDays">3</span>일 전까지 이 페이지에서 직접 할 수 있습니다.</span></li>
       </ul>
       <form id="verifyForm" novalidate>
         <div class="fields">
@@ -295,6 +338,17 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
       <ul class="sched-list" id="schedList"></ul>
     </section>
    </div>
+    <!-- 차량 이미지(선택): 저장소 images/vehicle.jpg 를 올리면 표시 -->
+    <section class="vehicle-band" id="vehicleBand" hidden>
+      <div class="vb-text">
+        <h3>교육 현장에서<br>직접 경험해 보세요</h3>
+        <ul>
+          <li><svg class="ic"><use href="#i-car"/></svg>제품 교육</li>
+          <li><svg class="ic"><use href="#i-badge"/></svg>기술 교육</li>
+          <li><svg class="ic"><use href="#i-queue"/></svg>체험 실습</li>
+        </ul>
+      </div>
+    </section>
   </section>
 
   <!-- 기존 신청 내역 -->
@@ -440,16 +494,17 @@ function paintInfo(info) {
     dday = p.state === 'after' ? '마감' : days <= 0 ? 'D-Day' : 'D-' + days;
   }
   $('facts').innerHTML = allDates.length ? `
-    <div><dt>교육 기간</dt><dd class="num">${md(allDates[0].label)} ~ ${md(allDates[allDates.length - 1].label)}</dd></div>
-    <div><dt>교육 지역</dt><dd>${sch.length}개 지역<small>${esc(sch.map(r => r.region).join(' · '))}</small></dd></div>
-    <div><dt>운영</dt><dd>오전 · 오후<small>하루 2회</small></dd></div>
-    <div><dt>신청 마감</dt><dd>${dday ? `<span class="badge num">${dday}</span>` : '-'}<small>${esc(p.closeAt || '')}</small></dd></div>` : '';
+    <div><dt><svg class="ic"><use href="#i-cal"/></svg>교육 기간</dt><dd class="num">${md(allDates[0].label)} ~ ${md(allDates[allDates.length - 1].label)}</dd></div>
+    <div><dt><svg class="ic"><use href="#i-pin"/></svg>교육 지역</dt><dd>${sch.length}개 지역<small>${esc(sch.map(r => r.region).join(' · '))}</small></dd></div>
+    <div><dt><svg class="ic"><use href="#i-clock"/></svg>운영</dt><dd>오전 · 오후<small>하루 2회</small></dd></div>
+    <div><dt><svg class="ic"><use href="#i-alarm"/></svg>신청 마감</dt><dd>${dday ? `<span class="badge num">${dday}</span>` : '-'}<small>${esc(p.closeAt || '')}</small></dd></div>` : '';
 
   $('schedList').innerHTML = sch.map(r => `<li>
-      <b>${esc(r.region)}<span class="v">${esc(r.venue)}</span></b>
+      <b><svg class="ic"><use href="#i-pin"/></svg><span>${esc(r.region)}<span class="v">${esc(r.venue)}</span></span></b>
       <span class="chips">${r.dates.map(d => `<span class="chip">${esc(d.label)}</span>`).join('')}</span></li>`).join('');
   $('sched').hidden = !sch.length;
   setHero(info.heroImage);
+  loadVehicle(info.vehicleImage);
 }
 
 /* 대표 이미지
@@ -480,6 +535,28 @@ function setHero(src) {
     };
     img.onerror = () => tryNext(i + 1);
     img.src = url;
+  })(0);
+}
+
+/* 차량 이미지: ① 설정 시트 '차량이미지' 주소 → ② 저장소 images/vehicle.jpg → ③ 기본 gm.com 이미지
+ * 외부 주소가 바뀌거나 막혀서 못 불러오면 다음 후보로 넘어가고, 모두 실패하면 영역을 숨김 */
+const DEFAULT_VEHICLE = 'https://www.gm.com/content/public/us/en/gm/home/_jcr_content/par/channelbox_1842681463/par/rown/par_2/channelbox/par/image.img.jpg/Careers.jpg';
+function loadVehicle(fromSheet) {
+  const list = [fromSheet, 'images/vehicle.jpg', DEFAULT_VEHICLE].filter(Boolean);
+  const key = list.join('|');
+  if (loadVehicle.key === key) return;
+  loadVehicle.key = key;
+  (function tryNext(i) {
+    if (i >= list.length) { $('vehicleBand').hidden = true; return; }
+    const img = new Image();
+    img.referrerPolicy = 'no-referrer';
+    img.onload = () => {
+      if (loadVehicle.key !== key) return;
+      document.documentElement.style.setProperty('--vehicle', `url("${list[i].replace(/"/g, '%22')}")`);
+      $('vehicleBand').hidden = false;
+    };
+    img.onerror = () => tryNext(i + 1);
+    img.src = list[i];
   })(0);
 }
 
@@ -526,17 +603,17 @@ function ticket(s, applicant, opts = {}) {
       ${opts.stamp ? `<span class="stamp">${esc(opts.stamp)}</span>` : ''}
       <div class="t-region">${esc(s.region)}</div>
       <div class="t-venue">${esc(s.venue)}</div>
-      <div class="t-when"><b>${esc(longDate(s))}</b><span>${esc(s.slot)} ${esc(s.time)}</span></div>
+      <div class="t-when"><b><svg class="ic"><use href="#i-cal"/></svg>${esc(longDate(s))}</b><span><svg class="ic"><use href="#i-clock"/></svg>${esc(s.slot)} ${esc(s.time)}</span></div>
     </div>
     <div class="t-cut"></div>
     <dl class="t-info">
-      <dt>이름</dt><dd>${esc(applicant.name)}</dd>
-      <dt>판매코드</dt><dd class="num">${esc(applicant.code)}</dd>
-      <dt>전시장</dt><dd>${esc(applicant.dealer || '-')}</dd>
-      <dt>연락처</dt><dd>${opts.editPhone
+      <dt><svg class="ic"><use href="#i-user"/></svg>이름</dt><dd>${esc(applicant.name)}</dd>
+      <dt><svg class="ic"><use href="#i-badge"/></svg>판매코드</dt><dd class="num">${esc(applicant.code)}</dd>
+      <dt><svg class="ic"><use href="#i-store"/></svg>전시장</dt><dd>${esc(applicant.dealer || '-')}</dd>
+      <dt><svg class="ic"><use href="#i-phone"/></svg>연락처</dt><dd>${opts.editPhone
         ? `<input id="phone" inputmode="tel" value="${esc(opts.phone)}" aria-label="연락처">`
         : `<span class="num">${esc(opts.phone || '-')}</span>`}</dd>
-      ${s.no ? `<dt>신청번호</dt><dd class="num">${esc(s.no)}</dd>` : ''}
+      ${s.no ? `<dt><svg class="ic"><use href="#i-ticket"/></svg>신청번호</dt><dd class="num">${esc(s.no)}</dd>` : ''}
     </dl></div>`;
 }
 
@@ -546,7 +623,7 @@ function timetable(slot) {
   const rows = S.timetable.filter(r => r[key] || r.content);
   if (!rows.length) return '';
   const isBreak = t => /break|lunch|휴식|중식|점심|석식/i.test(t);
-  return `<section class="tt"><h3>교육 시간표<small>${esc(slot)}반</small></h3>
+  return `<section class="tt"><h3><span class="ttl"><svg class="ic"><use href="#i-clock"/></svg>교육 시간표</span><small>${esc(slot)}반</small></h3>
     <table><tbody>${rows.map(r => `<tr class="${isBreak(r.content) ? 'brk' : ''}">
       <td class="t">${esc(r[key])}</td><td class="d">${esc(r.dur)}</td>
       <td>${esc(r.content)}${r.note ? `<small>${esc(r.note)}</small>` : ''}</td></tr>`).join('')}
@@ -642,7 +719,7 @@ function renderSelect() {
   const mineId = change ? d.application.sessionId : null;
   $('regionPanel').setAttribute('aria-labelledby', 'tab-' + r.no);
   $('regionPanel').innerHTML = `
-    <div class="panel-head"><h3>${esc(r.name)}</h3><span>${esc(r.venue)}<br>${r.open ? `남은 좌석 ${r.remaining}석` : '모집 마감'}</span></div>
+    <div class="panel-head"><h3>${esc(r.name)}</h3><span><svg class="ic"><use href="#i-pin"/></svg> ${esc(r.venue)}<br>${r.open ? `남은 좌석 ${r.remaining}석` : '모집 마감'}</span></div>
     ${r.days.map(day => {
       const s0 = day.slots[0];
       const w = (day.label.match(/\((.)\)/) || [])[1];
