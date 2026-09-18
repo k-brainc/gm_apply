@@ -41,6 +41,12 @@ button,input{font:inherit;color:inherit}
 .hero.has-photo::after{content:"";position:absolute;inset:0;background:
   linear-gradient(90deg,rgba(18,72,190,.88) 0%,rgba(10,111,214,.55) 45%,rgba(10,111,214,0) 78%),
   linear-gradient(0deg,rgba(11,31,58,.55) 0%,rgba(11,31,58,0) 45%)}
+.hero.has-art{min-height:640px}
+.hero-art{position:absolute;z-index:0;left:calc(50% - 300px);top:34px;width:min(740px,70%);height:auto;pointer-events:none;
+  mix-blend-mode:screen;opacity:.92;filter:drop-shadow(0 18px 30px rgba(11,31,58,.25));animation:artIn .9s cubic-bezier(.2,.7,.2,1) both}
+@keyframes artIn{from{opacity:0;transform:translateX(40px)}to{opacity:.92;transform:none}}
+.hero.compact .hero-art{width:min(46%,420px);left:auto;right:max(0px,calc(50% - 560px));top:auto;bottom:-24px;opacity:.35;animation:none}
+.art-mode .t-main::before{background:var(--photo) right -20px bottom -10px/68% auto no-repeat;opacity:.28;mix-blend-mode:screen}
 .hero-in{position:relative;z-index:1;width:100%;padding-top:36px;padding-bottom:88px}
 .brand-logo{display:block;height:34px;width:auto;margin-bottom:22px}
 .hero h1{margin:0;font-size:2.7rem;font-weight:800;letter-spacing:-.035em;line-height:1.12}
@@ -55,7 +61,7 @@ button,input{font:inherit;color:inherit}
 .facts .dday span{color:var(--muted)}
 
 /* 로그인 후 축소 헤더 */
-.hero.compact{min-height:0}
+.hero.compact,.hero.compact.has-art{min-height:0!important}
 .hero.compact .hero-in{padding-top:20px;padding-bottom:18px}
 .hero.compact .brand-logo{height:24px;margin-bottom:12px}
 .hero.compact h1{font-size:1.3rem}
@@ -203,6 +209,9 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
 
 @media (max-width:560px){
   .hero{min-height:380px}
+  .hero.has-art{min-height:540px}
+  .hero-art{width:104%;left:auto;right:-12%;top:14px;opacity:.8}
+  .hero.compact .hero-art{width:70%;right:-18%;top:auto;bottom:-10px;opacity:.28}
   .hero h1{font-size:2.1rem}
   .fields{grid-template-columns:1fr}
   .t-region{font-size:1.95rem}
@@ -216,6 +225,7 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
 
 <header class="hero" id="hero">
   <div class="hero-bg" id="heroBg"></div>
+  <img class="hero-art" id="heroArt" alt="" hidden>
   <div class="wrap hero-in">
     <!-- 로고(선택): 저장소 images/logo-white.svg 에 흰색(반전) 로고를 올리면 표시 -->
     <img class="brand-logo" src="images/logo-white.svg" alt="" onerror="this.remove()">
@@ -405,16 +415,35 @@ function paintInfo(info) {
   setHero(info.heroImage);
 }
 
+/* 대표 이미지
+ *  - 배경이 투명한 PNG(스케치·누끼 이미지) → 파란 그라데이션 위에 일러스트로 배치
+ *  - JPG 사진 → 화면 전체 배경 사진으로 사용
+ *  설정 시트 '대표이미지'를 따로 지정하지 않았다면 images/hero.png → hero.jpg 순서로 찾음 */
 function setHero(src) {
-  if (!src || setHero.done === src) return;
-  const img = new Image();
-  img.onload = () => {
-    setHero.done = src;
-    document.documentElement.style.setProperty('--photo', `url("${src.replace(/"/g, '%22')}")`);
-    $('heroBg').classList.add('photo');
-    $('hero').classList.add('has-photo');
-  };
-  img.src = src;
+  const custom = src && src !== 'images/hero.jpg';
+  const list = custom ? [src] : ['images/hero.png', 'images/hero.jpg'];
+  if (setHero.done) return;
+  setHero.done = true;
+  (function tryNext(i) {
+    if (i >= list.length) return;
+    const url = list[i];
+    const img = new Image();
+    img.onload = () => {
+      const art = /\.(png|webp|svg)(\?|$)/i.test(url);
+      document.documentElement.style.setProperty('--photo', `url("${url.replace(/"/g, '%22')}")`);
+      if (art) {
+        $('heroArt').src = url;
+        $('heroArt').hidden = false;
+        $('hero').classList.add('has-art');
+        document.body.classList.add('art-mode');
+      } else {
+        $('heroBg').classList.add('photo');
+        $('hero').classList.add('has-photo');
+      }
+    };
+    img.onerror = () => tryNext(i + 1);
+    img.src = url;
+  })(0);
 }
 
 async function init() {
