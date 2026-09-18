@@ -29,6 +29,19 @@ button,input,select{font:inherit;color:inherit}
 .btn{height:36px;padding:0 14px;border-radius:var(--r);border:1.5px solid #7F8FA3;background:transparent;color:#fff;font-weight:700;cursor:pointer}
 .link-btn{display:inline-flex;align-items:center;text-decoration:none;border-color:#7FA6E8;color:#fff;background:rgba(27,95,217,.35)}
 .link-btn:hover{background:rgba(27,95,217,.55)}
+.session{display:inline-flex;align-items:center;gap:6px;font-size:.84rem;color:#D8E0EA;border:1px solid rgba(255,255,255,.25);border-radius:var(--r);padding:4px 6px 4px 10px}
+.session b{font-size:.95rem;color:#fff;min-width:42px}
+.session button{border:0;background:rgba(255,255,255,.14);color:#fff;border-radius:4px;padding:3px 8px;font-size:.8rem;font-weight:700;cursor:pointer}
+.session.warn{border-color:var(--signal)}
+.session.warn b{color:var(--signal)}
+.dlg{border:0;border-radius:10px;padding:26px 26px 20px;max-width:380px;width:calc(100% - 40px);box-shadow:0 20px 50px rgba(15,28,46,.3)}
+.dlg::backdrop{background:rgba(15,28,46,.55)}
+.dlg h2{margin:0 0 8px;font-size:1.15rem}
+.dlg p{margin:0 0 20px;color:var(--muted);font-size:.94rem}
+.dlg p b{color:var(--stop);font-size:1.05rem}
+.dlg-actions{display:flex;gap:8px}
+.dlg-actions .btn{flex:1;height:44px}
+.btn.ghost{background:var(--white);color:var(--ink);border-color:var(--line)}
 .btn.solid{background:var(--ink);border-color:var(--ink)}
 
 .login{max-width:360px;margin:12vh auto;background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:28px}
@@ -146,6 +159,8 @@ footer{padding:30px 0;color:var(--muted);font-size:.82rem}
   <div class="wrap">
     <h1 id="title">교육신청 관리자</h1>
     <small id="stamp"></small>
+    <span class="session" id="sessionBox" hidden>접속 <b class="num" id="sessionLeft">05:00</b>
+      <button type="button" id="sessionExtend">연장</button></span>
     <label id="testWrap" hidden><input type="checkbox" id="fTest" checked> <span id="fTestLabel">테스트 포함</span></label>
     <a class="btn link-btn" id="sheetLink" href="#" target="_blank" rel="noopener" hidden title="구글시트 원본을 새 탭에서 엽니다">원본 시트 열기 ↗</a>
     <button class="btn" id="refresh" hidden>새로고침</button>
@@ -162,6 +177,15 @@ footer{padding:30px 0;color:var(--muted);font-size:.82rem}
     <p class="err" id="loginErr" role="alert"></p>
   </form>
 </section>
+
+<dialog class="dlg" id="extendDlg" aria-labelledby="extendTitle">
+  <h2 id="extendTitle">접속 시간을 연장할까요?</h2>
+  <p><b class="num" id="extendLeft">60</b>초 뒤 자동으로 로그아웃되고 관리자 로그인 화면으로 돌아갑니다.</p>
+  <div class="dlg-actions">
+    <button type="button" class="btn ghost" id="extendNo">로그아웃</button>
+    <button type="button" class="btn solid" id="extendYes">5분 연장</button>
+  </div>
+</dialog>
 
 <main class="wrap" id="dash" hidden>
 
@@ -229,9 +253,12 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwYsk6l-NNv6ca51MjtNKRY
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 : 0;
-let D = null, timer = null, idleTimer = null;
+let D = null, timer = null;
 let TOKEN = null;                 // 로그인 토큰: 메모리에만 보관 (새로고침·재접속 시 다시 로그인)
-const IDLE_MIN = 30;              // 무활동 자동 로그아웃(분)
+let EXPIRES = 0;                  // 접속 만료 시각(ms)
+let clock = null;                 // 1초 간격 남은 시간 확인
+const SESSION_SEC = 5 * 60;       // 기본 접속 시간 5분
+const WARN_SEC = 60;              // 만료 1분 전 연장 여부 확인
 
 // 이전 버전이 브라우저에 남긴 비밀번호 정리
 try { sessionStorage.removeItem('eduAdminPw'); } catch (_) {}
@@ -248,9 +275,9 @@ async function call(action, payload = {}) {
   return json;
 }
 
-async function load(active) {
+async function load() {
   try {
-    D = await call('adminDashboard', { token: TOKEN, active: !!active });
+    D = await call('adminDashboard', { token: TOKEN });
     render();
   } catch (e) {
     if (e.code === 'AUTH_EXPIRED') logout(e.message);
@@ -459,7 +486,7 @@ $('loginForm').addEventListener('submit', async e => {
     const res = await call('adminLogin', { password: pw }); // 로그인 + 데이터 한 번에
     TOKEN = res.token; D = res;
     render();
-    enter();
+    enter(res.session);
   } catch (err) {
     TOKEN = null;
     $('loginErr').textContent = err.message;
@@ -468,42 +495,84 @@ $('loginForm').addEventListener('submit', async e => {
   }
 });
 
-function enter() {
+function enter(sessionSec) {
   $('login').hidden = true; $('dash').hidden = false;
-  ['refresh','csv','logout','testWrap'].forEach(id => $(id).hidden = false);
+  ['refresh','csv','logout','testWrap','sessionBox'].forEach(id => $(id).hidden = false);
   clearInterval(timer);
-  timer = setInterval(() => load(false).catch(() => {}), 60000);
-  bumpIdle();
+  timer = setInterval(() => load().catch(() => {}), 60000);
+  startSession(sessionSec || SESSION_SEC);
 }
+
+/* ---------- 접속 시간 관리 ---------- */
+function startSession(sec) {
+  EXPIRES = Date.now() + sec * 1000;
+  closeExtend();
+  clearInterval(clock);
+  clock = setInterval(tick, 1000);
+  tick();
+}
+
+const mmss = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+function tick() {
+  if (!TOKEN) return;
+  const left = Math.max(0, Math.ceil((EXPIRES - Date.now()) / 1000));
+  $('sessionLeft').textContent = mmss(left);
+  $('sessionBox').classList.toggle('warn', left <= WARN_SEC);
+  if (left <= 0) return logout(`접속 시간(${SESSION_SEC / 60}분)이 지나 로그아웃되었습니다. 다시 로그인해 주세요.`);
+  if (left <= WARN_SEC) {
+    if (!$('extendDlg').open) openExtend();
+    $('extendLeft').textContent = left;
+  }
+}
+
+function openExtend() {
+  const dlg = $('extendDlg');
+  if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
+  $('extendYes').focus();
+}
+function closeExtend() {
+  const dlg = $('extendDlg');
+  if (dlg.open) { if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open'); }
+}
+
+async function extend() {
+  const btn = $('extendYes');
+  btn.disabled = true; btn.textContent = '연장 중…';
+  try {
+    const res = await call('adminExtend', { token: TOKEN });
+    startSession(res.session || SESSION_SEC);
+  } catch (e) {
+    logout(e.code === 'AUTH_EXPIRED' ? e.message : '연장하지 못했습니다. 다시 로그인해 주세요.');
+  } finally {
+    btn.disabled = false; btn.textContent = '5분 연장';
+  }
+}
+
+$('extendYes').onclick = extend;
+$('extendNo').onclick = () => logout('로그아웃되었습니다.');
+$('extendDlg').addEventListener('cancel', e => e.preventDefault()); // Esc로 닫혀 방치되지 않게
+$('sessionExtend').onclick = extend;
+// 탭이 백그라운드였다가 돌아오면 즉시 남은 시간 확인
+document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
 
 /* 로그아웃: 서버 토큰 폐기 + 화면의 데이터 제거 */
 function logout(message) {
   if (TOKEN) call('adminLogout', { token: TOKEN }).catch(() => {});
-  TOKEN = null; D = null;
-  clearInterval(timer); clearTimeout(idleTimer);
-  ['refresh','csv','logout','testWrap','sheetLink'].forEach(id => $(id).hidden = true);
+  TOKEN = null; D = null; EXPIRES = 0;
+  clearInterval(timer); clearInterval(clock);
+  closeExtend();
+  ['refresh','csv','logout','testWrap','sheetLink','sessionBox'].forEach(id => $(id).hidden = true);
   $('sheetLink').href = '#';
   $('dash').hidden = true; $('login').hidden = false;
   ['timeline','rings','trend','dealers','appBody','stats','donut','split'].forEach(id => $(id).innerHTML = '');
   $('title').textContent = '교육신청 관리자'; $('stamp').textContent = '';
   $('loginErr').textContent = message || '';
+  window.scrollTo(0, 0);
   $('pw').focus();
 }
 
-/* 무활동 자동 로그아웃 */
-function bumpIdle() {
-  if (!TOKEN) return;
-  clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => logout(`${IDLE_MIN}분 동안 사용하지 않아 로그아웃되었습니다.`), IDLE_MIN * 60000);
-}
-let lastPing = Date.now();
-['click','keydown','scroll','pointermove'].forEach(ev => document.addEventListener(ev, () => {
-  bumpIdle();
-  // 사용 중이면 5분마다 서버 세션도 연장
-  if (TOKEN && Date.now() - lastPing > 5 * 60000) { lastPing = Date.now(); load(true).catch(() => {}); }
-}, { passive: true }));
-
-$('refresh').onclick = () => load(true).catch(e => alert(e.message));
+$('refresh').onclick = () => load().catch(e => { if (e.code !== 'AUTH_EXPIRED') alert(e.message); });
 $('logout').onclick = () => logout('로그아웃되었습니다.');
 
 $('csv').onclick = () => {
