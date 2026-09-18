@@ -70,6 +70,8 @@ tr.sel td{background:var(--signal-soft)!important}
 .filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
 .filters select,.filters input{height:38px;border:1.5px solid var(--line);border-radius:var(--r);padding:0 10px;background:var(--white)}
 .filters input{flex:1;min-width:180px}
+.chk{display:flex;align-items:center;gap:6px;font-size:.88rem;color:var(--muted);margin:0 0 10px}
+.tag.test{background:#E9EDF2;color:var(--ink-2)}
 .empty{padding:28px;text-align:center;color:var(--muted)}
 .list{max-height:560px;overflow:auto}
 footer{padding:30px 0;color:var(--muted);font-size:.82rem}
@@ -130,6 +132,7 @@ footer{padding:30px 0;color:var(--muted);font-size:.82rem}
         <select id="fSession" aria-label="과정"></select>
         <input id="fQuery" placeholder="이름, 판매코드, 전시장, 연락처 검색" aria-label="검색">
       </div>
+      <label class="chk"><input type="checkbox" id="fTest"> <span id="fTestLabel">테스트 신청 포함 (집계·명단에 함께 표시)</span></label>
       <div class="panel list"><table>
         <thead><tr><th>이름</th><th>판매코드</th><th>연락처</th><th>지역</th><th>전시장명</th><th>과정</th><th>신청일시</th><th class="r">변경</th></tr></thead>
         <tbody id="appBody"></tbody>
@@ -180,6 +183,22 @@ function enter() {
 $('refresh').onclick = () => load().catch(e => alert(e.message));
 $('logout').onclick = () => { sessionStorage.removeItem('eduAdminPw'); location.reload(); };
 
+/* 테스트 신청 포함 여부에 따라 집계용 과정·명단을 만든다 */
+function withTest() { return $('fTest').checked; }
+function sessionsView() {
+  if (!withTest()) return D.sessions;
+  const add = {};
+  (D.testApplicants || []).forEach(a => add[a.sessionId] = (add[a.sessionId] || 0) + 1);
+  return D.sessions.map(s => {
+    const applied = s.applied + (add[s.id] || 0);
+    const status = s.status === 'closed' ? 'closed' : applied >= s.capacity ? 'full' : 'open';
+    return Object.assign({}, s, { applied, status });
+  });
+}
+function applicantsView() {
+  return withTest() ? D.applicants.concat(D.testApplicants || []) : D.applicants;
+}
+
 function barCell(applied, cap) {
   const r = pct(applied, cap);
   const cls = applied >= cap && cap ? 'full' : r >= 80 ? 'hi' : '';
@@ -188,7 +207,7 @@ function barCell(applied, cap) {
 
 function regions() {
   const map = new Map();
-  D.sessions.forEach(s => {
+  sessionsView().forEach(s => {
     const r = map.get(s.region) || { no: s.regionNo, name: s.region, count: 0, cap: 0, applied: 0 };
     r.count++; r.cap += s.capacity; r.applied += s.applied;
     map.set(s.region, r);
@@ -200,12 +219,14 @@ function render() {
   $('title').textContent = D.title + ' 신청 관리';
   $('stamp').textContent = '갱신 ' + D.generatedAt.slice(5, 16);
 
-  const cap = D.sessions.reduce((a, s) => a + s.capacity, 0);
-  const applied = D.sessions.reduce((a, s) => a + s.applied, 0);
-  const full = D.sessions.filter(s => s.status === 'full').length;
+  const SV = sessionsView();
+  const cap = SV.reduce((a, s) => a + s.capacity, 0);
+  const applied = SV.reduce((a, s) => a + s.applied, 0);
+  const full = SV.filter(s => s.status === 'full').length;
+  $('fTestLabel').textContent = `테스트 신청 포함 (${(D.testApplicants || []).length}건, 집계·명단에 함께 표시)`;
   $('totalBig').innerHTML = `${applied}<span> / ${cap}명</span>`;
   $('totalGauge').style.width = Math.min(pct(applied, cap), 100) + '%';
-  $('totalText').textContent =
+  $('totalText').textContent = (withTest() ? '[테스트 포함] ' : '') +
     `전체 모집률 ${pct(applied, cap)}% · 과정 ${D.sessions.length}개 중 ${full}개 정원 마감 · 취소 ${D.canceled}건 · 신청 기간 ${D.period.openAt} ~ ${D.period.closeAt}`;
 
   const fr = $('fRegion').value;
@@ -222,7 +243,7 @@ function render() {
 
   const label = { open: '모집중', full: '정원 마감', closed: '신청 종료' };
   const fs = $('fSession').value;
-  $('sessionBody').innerHTML = D.sessions.map(s => `
+  $('sessionBody').innerHTML = SV.map(s => `
     <tr class="clickable ${fs === s.id ? 'sel' : ''}" data-id="${esc(s.id)}">
       <td>${esc(s.region)}</td><td class="num">${esc(s.dateLabel)}</td><td>${esc(s.slot)}</td>
       <td class="r num">${s.applied} / ${s.capacity}</td><td>${barCell(s.applied, s.capacity)}</td>
@@ -249,7 +270,7 @@ function fillFilters() {
 
 function filtered() {
   const fr = $('fRegion').value, fs = $('fSession').value, q = $('fQuery').value.trim().toLowerCase();
-  return D.applicants
+  return applicantsView()
     .filter(a => (!fr || a.region === fr) && (!fs || a.sessionId === fs))
     .filter(a => !q || [a.name, a.code, a.dealer, a.phone].join(' ').toLowerCase().includes(q))
     .sort((a, b) => a.regionNo - b.regionNo || a.sessionId.localeCompare(b.sessionId) || a.appliedAt.localeCompare(b.appliedAt));
@@ -260,7 +281,7 @@ function renderList() {
   $('listCount').textContent = `${rows.length}명`;
   $('appBody').innerHTML = rows.length ? rows.map(a => `
     <tr>
-      <td><b>${esc(a.name)}</b></td><td class="num">${esc(a.code)}</td><td class="num">${esc(a.phone)}</td>
+      <td><b>${esc(a.name)}</b>${a.test ? ' <span class="tag test">테스트</span>' : ''}</td><td class="num">${esc(a.code)}</td><td class="num">${esc(a.phone)}</td>
       <td>${esc(a.region)}</td><td>${esc(a.dealer)}</td>
       <td class="num">${esc(a.dateLabel)} ${esc(a.slot)}</td><td class="num">${esc(a.appliedAt.slice(5, 16))}</td>
       <td class="r num">${a.changes || ''}</td>
@@ -271,6 +292,7 @@ function renderList() {
 $('fRegion').onchange = () => { $('fSession').value = ''; render(); };
 $('fSession').onchange = render;
 $('fQuery').oninput = renderList;
+$('fTest').onchange = render;
 
 $('csv').onclick = () => {
   const head = ['신청번호','이름','판매코드','연락처','지역','교육장','전시장명','일자','구분','교육시간','신청일시','변경횟수','최종변경일시'];
