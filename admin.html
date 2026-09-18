@@ -27,6 +27,8 @@ button,input,select{font:inherit;color:inherit}
 .top small{color:#B9C4D2}
 .top label{display:flex;align-items:center;gap:6px;font-size:.86rem;color:#D8E0EA;cursor:pointer}
 .btn{height:36px;padding:0 14px;border-radius:var(--r);border:1.5px solid #7F8FA3;background:transparent;color:#fff;font-weight:700;cursor:pointer}
+.link-btn{display:inline-flex;align-items:center;text-decoration:none;border-color:#7FA6E8;color:#fff;background:rgba(27,95,217,.35)}
+.link-btn:hover{background:rgba(27,95,217,.55)}
 .btn.solid{background:var(--ink);border-color:var(--ink)}
 
 .login{max-width:360px;margin:12vh auto;background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:28px}
@@ -145,6 +147,7 @@ footer{padding:30px 0;color:var(--muted);font-size:.82rem}
     <h1 id="title">교육신청 관리자</h1>
     <small id="stamp"></small>
     <label id="testWrap" hidden><input type="checkbox" id="fTest" checked> <span id="fTestLabel">테스트 포함</span></label>
+    <a class="btn link-btn" id="sheetLink" href="#" target="_blank" rel="noopener" hidden title="구글시트 원본을 새 탭에서 엽니다">원본 시트 열기 ↗</a>
     <button class="btn" id="refresh" hidden>새로고침</button>
     <button class="btn" id="csv" hidden>CSV 내려받기</button>
     <button class="btn" id="logout" hidden>로그아웃</button>
@@ -303,6 +306,8 @@ function render() {
 
   $('title').textContent = D.title + ' 신청 현황';
   $('stamp').textContent = '갱신 ' + D.generatedAt.slice(5, 16);
+  if (D.sheetUrl) $('sheetLink').href = D.sheetUrl;
+  $('sheetLink').hidden = !D.sheetUrl;
   $('fTestLabel').textContent = `테스트 포함 (${nTest}건)`;
 
   // KPI
@@ -476,7 +481,8 @@ function logout(message) {
   if (TOKEN) call('adminLogout', { token: TOKEN }).catch(() => {});
   TOKEN = null; D = null;
   clearInterval(timer); clearTimeout(idleTimer);
-  ['refresh','csv','logout','testWrap'].forEach(id => $(id).hidden = true);
+  ['refresh','csv','logout','testWrap','sheetLink'].forEach(id => $(id).hidden = true);
+  $('sheetLink').href = '#';
   $('dash').hidden = true; $('login').hidden = false;
   ['timeline','rings','trend','dealers','appBody','stats','donut','split'].forEach(id => $(id).innerHTML = '');
   $('title').textContent = '교육신청 관리자'; $('stamp').textContent = '';
