@@ -32,47 +32,59 @@ button,input{font:inherit;color:inherit}
 .num{font-variant-numeric:tabular-nums}
 
 /* ---------- hero ---------- */
-.hero{position:relative;color:#fff;background:var(--brand);overflow:hidden;min-height:460px;display:flex;align-items:flex-end;transition:min-height .3s}
+.hero{position:relative;color:#fff;overflow:hidden}
 .hero-bg{position:absolute;inset:0;background:
-  radial-gradient(60% 80% at 90% 0%,rgba(255,255,255,.28),transparent 60%),
-  radial-gradient(50% 60% at 0% 100%,rgba(23,71,201,.55),transparent 70%),
-  var(--grad);background-size:cover;background-position:center 60%}
+  radial-gradient(55% 70% at 88% 18%,rgba(255,255,255,.22),transparent 65%),
+  radial-gradient(45% 60% at 0% 100%,rgba(23,71,201,.5),transparent 70%),
+  var(--grad)}
 .hero-bg.photo{background:var(--photo) center 60%/cover no-repeat}
 .hero.has-photo::after{content:"";position:absolute;inset:0;background:
-  linear-gradient(90deg,rgba(18,72,190,.88) 0%,rgba(10,111,214,.55) 45%,rgba(10,111,214,0) 78%),
-  linear-gradient(0deg,rgba(11,31,58,.55) 0%,rgba(11,31,58,0) 45%)}
-.hero.has-art{min-height:640px}
-.hero-art{position:absolute;z-index:0;left:calc(50% - 300px);top:34px;width:min(740px,70%);height:auto;pointer-events:none;
-  mix-blend-mode:screen;opacity:.92;filter:drop-shadow(0 18px 30px rgba(11,31,58,.25));animation:artIn .9s cubic-bezier(.2,.7,.2,1) both}
-@keyframes artIn{from{opacity:0;transform:translateX(40px)}to{opacity:.92;transform:none}}
-.hero.compact .hero-art{width:min(46%,420px);left:auto;right:max(0px,calc(50% - 560px));top:auto;bottom:-24px;opacity:.35;animation:none}
-.art-mode .t-main::before{background:var(--photo) right -20px bottom -10px/68% auto no-repeat;opacity:.28;mix-blend-mode:screen}
-.hero-in{position:relative;z-index:1;width:100%;padding-top:36px;padding-bottom:88px}
-.brand-logo{display:block;height:34px;width:auto;margin-bottom:22px}
-.hero h1{margin:0;font-size:2.7rem;font-weight:800;letter-spacing:-.035em;line-height:1.12}
-.hero h1::after{content:"";display:block;width:44px;height:5px;border-radius:3px;background:#fff;margin-top:14px;opacity:.95}
-.hero .sub{margin:14px 0 0;color:rgba(255,255,255,.88);font-size:.98rem}
-.facts{list-style:none;margin:22px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
-.facts li{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:var(--pill);padding:7px 16px;backdrop-filter:blur(6px)}
-.facts b{font-size:.98rem;font-weight:800;letter-spacing:-.01em}
-.facts span{font-size:.8rem;color:rgba(255,255,255,.82);margin-left:6px}
-.facts .dday{background:#fff;border-color:#fff}
-.facts .dday b{color:var(--brand-deep)}
-.facts .dday span{color:var(--muted)}
+  linear-gradient(90deg,rgba(18,72,190,.9) 0%,rgba(10,111,214,.6) 45%,rgba(10,111,214,0) 80%)}
+
+/* 기본: 한 열 (그림 없을 때) */
+.hero-grid{position:relative;z-index:1;max-width:680px;margin:0 auto;padding:56px 20px 104px;display:grid;grid-template-columns:1fr;gap:28px;align-items:center}
+/* 그림 있을 때 (PC): 왼쪽 글 · 오른쪽 그림 */
+.hero.has-art .hero-grid{max-width:1160px;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:24px;padding:60px 32px 112px}
+.hero-visual{min-width:0}
+.hero-art{display:block;width:116%;max-width:none;height:auto;margin:0 -14% 0 2%;pointer-events:none;
+  animation:artIn 1s cubic-bezier(.2,.7,.2,1) both}
+@keyframes artIn{from{opacity:0;transform:translateX(48px)}to{opacity:1;transform:none}}
+.art-mode .t-main::before{background:var(--photo) right -30px bottom -6px/70% auto no-repeat;opacity:.3}
+
+.brand-logo{display:block;height:32px;width:auto;margin-bottom:26px}
+.hero h1{margin:0;font-size:2.9rem;font-weight:800;letter-spacing:-.04em;line-height:1.1}
+.hero h1::after{content:"";display:block;width:44px;height:5px;border-radius:3px;background:#fff;margin-top:16px}
+.hero .sub{margin:14px 0 0;color:rgba(255,255,255,.88);font-size:.96rem}
+
+/* 핵심 정보 2×2 */
+.facts{margin:28px 0 0;display:grid;grid-template-columns:1fr 1fr;border-top:1px solid rgba(255,255,255,.28)}
+.facts > div{padding:13px 0 12px;border-bottom:1px solid rgba(255,255,255,.28);min-width:0}
+.facts > div:nth-child(odd){padding-right:16px;border-right:1px solid rgba(255,255,255,.28)}
+.facts > div:nth-child(even){padding-left:18px}
+.facts dt{font-size:.78rem;color:rgba(255,255,255,.75);margin-bottom:2px}
+.facts dd{margin:0;font-size:1.12rem;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.facts dd small{display:block;font-size:.76rem;font-weight:500;color:rgba(255,255,255,.8);letter-spacing:0;white-space:normal}
+.facts .badge{display:inline-block;background:#fff;color:var(--brand-deep);border-radius:var(--pill);padding:0 12px;font-size:1.02rem}
 
 /* 로그인 후 축소 헤더 */
-.hero.compact,.hero.compact.has-art{min-height:0!important}
-.hero.compact .hero-in{padding-top:20px;padding-bottom:18px}
-.hero.compact .brand-logo{height:24px;margin-bottom:12px}
+.hero.compact .hero-grid{max-width:680px;grid-template-columns:1fr;padding:20px 20px 18px;gap:0}
+.hero.compact .hero-visual{position:absolute;right:-6%;bottom:-18px;width:min(46%,380px);opacity:.3;pointer-events:none}
+.hero.compact .hero-art{width:100%;margin:0;animation:none}
+.hero.compact .brand-logo{height:22px;margin-bottom:12px}
 .hero.compact h1{font-size:1.3rem}
-.hero.compact h1::after{display:none}
-.hero.compact .facts,.hero.compact .sub{display:none}
+.hero.compact h1::after,.hero.compact .facts,.hero.compact .sub{display:none}
 .who{margin:4px 0 0;color:rgba(255,255,255,.88);font-size:.9rem}
 .steps{display:flex;gap:6px;margin:14px 0 0;padding:0;list-style:none;counter-reset:s}
 .steps li{flex:1;font-size:.78rem;color:rgba(255,255,255,.6);border-top:4px solid rgba(255,255,255,.25);border-radius:2px;padding-top:6px;counter-increment:s}
 .steps li::before{content:counter(s) ". ";font-weight:700}
 .steps li.on{color:#fff;border-color:#fff}
 .steps li.done{color:rgba(255,255,255,.85);border-color:rgba(255,255,255,.6)}
+
+/* 첫 화면 본문: PC에서는 히어로와 같은 폭, 왼쪽 신청카드 · 오른쪽 일정 */
+body.at-verify.art main.wrap{max-width:1160px;padding:0 32px}
+body.at-verify.art .verify-grid{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:40px;align-items:start}
+body.at-verify.art .verify-grid .fields{grid-template-columns:1fr}
+body.at-verify.art .sched{margin-top:28px}
 
 main{padding:0 0 150px}
 .screen{display:none}
@@ -208,34 +220,41 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
 @keyframes sp{to{transform:rotate(360deg)}}
 
 @media (max-width:560px){
-  .hero{min-height:380px}
-  .hero.has-art{min-height:540px}
-  .hero-art{width:104%;left:auto;right:-12%;top:14px;opacity:.8}
-  .hero.compact .hero-art{width:70%;right:-18%;top:auto;bottom:-10px;opacity:.28}
-  .hero h1{font-size:2.1rem}
+  .hero h1{font-size:2.2rem}
   .fields{grid-template-columns:1fr}
   .t-region{font-size:1.95rem}
-  .facts li{padding:6px 12px}
 }
+@media (max-width:900px){
+  .hero.has-art .hero-grid{grid-template-columns:1fr;max-width:680px;padding:28px 20px 100px;gap:10px}
+  .hero.has-art .hero-visual{order:-1}
+  .hero-art{width:112%;margin:0 -6%}
+  body.at-verify.art main.wrap{max-width:680px;padding:0 20px}
+  body.at-verify.art .verify-grid{display:block}
+  body.at-verify.art .verify-grid .fields{grid-template-columns:1fr 1fr}
+  .hero.compact .hero-visual{width:62%;right:-14%}
+}
+@media (max-width:560px){ body.at-verify.art .verify-grid .fields{grid-template-columns:1fr} }
 @media (max-width:380px){ .opts{grid-template-columns:1fr} }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
-<body>
+<body class="at-verify">
 
 <header class="hero" id="hero">
   <div class="hero-bg" id="heroBg"></div>
-  <img class="hero-art" id="heroArt" alt="" hidden>
-  <div class="wrap hero-in">
-    <!-- 로고(선택): 저장소 images/logo-white.svg 에 흰색(반전) 로고를 올리면 표시 -->
-    <img class="brand-logo" src="images/logo-white.svg" alt="" onerror="this.remove()">
-    <h1 id="title">제품교육 신청</h1>
-    <p class="sub" id="period">&nbsp;</p>
-    <ul class="facts" id="facts"></ul>
-    <p class="who" id="who" hidden></p>
-    <ol class="steps" id="steps" aria-label="신청 단계" hidden>
-      <li>과정 선택</li><li>신청 확인</li><li>완료</li>
-    </ol>
+  <div class="hero-grid">
+    <div class="hero-text">
+      <!-- 로고(선택): 저장소 images/logo-white.svg 에 흰색(반전) 로고를 올리면 표시 -->
+      <img class="brand-logo" src="images/logo-white.svg" alt="" onerror="this.remove()">
+      <h1 id="title">제품교육 신청</h1>
+      <p class="sub" id="period">&nbsp;</p>
+      <dl class="facts" id="facts"></dl>
+      <p class="who" id="who" hidden></p>
+      <ol class="steps" id="steps" aria-label="신청 단계" hidden>
+        <li>과정 선택</li><li>신청 확인</li><li>완료</li>
+      </ol>
+    </div>
+    <div class="hero-visual" id="heroVisual" hidden><img class="hero-art" id="heroArt" alt=""></div>
   </div>
 </header>
 
@@ -244,6 +263,7 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
 
   <!-- 1. 본인 확인 -->
   <section class="screen on" id="s-verify">
+   <div class="verify-grid">
     <div class="login-card">
       <h2>신청 대상 확인</h2>
       <p class="lead" style="margin:0">판매코드와 이름을 입력하세요. 이미 신청했다면 신청 내역을 확인하고 변경할 수 있습니다.</p>
@@ -260,6 +280,7 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
       <ul class="sched-list" id="schedList"></ul>
       <p class="sched-note">날짜마다 오전·오후 중 하나를 선택합니다. 정원이 차면 자동 마감됩니다.</p>
     </section>
+   </div>
   </section>
 
   <!-- 기존 신청 내역 -->
@@ -358,6 +379,7 @@ const STEP = { select:0, confirm:1, done:2 };
 function show(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 's-' + name));
   const inFlow = name !== 'verify';
+  document.body.classList.toggle('at-verify', !inFlow);
   $('hero').classList.toggle('compact', inFlow);
   $('who').hidden = !inFlow || !S.data;
   $('steps').hidden = !(name in STEP);
@@ -403,10 +425,10 @@ function paintInfo(info) {
     dday = p.state === 'after' ? '마감' : days <= 0 ? 'D-Day' : 'D-' + days;
   }
   $('facts').innerHTML = allDates.length ? `
-    <li><b class="num">${md(allDates[0].label)}~${md(allDates[allDates.length - 1].label)}</b><span>교육 기간</span></li>
-    <li><b>${sch.length}개 지역</b><span>${esc(sch.map(r => r.region).join('·'))}</span></li>
-    <li><b>오전 · 오후</b><span>하루 2회 운영</span></li>
-    ${dday ? `<li class="dday"><b class="num">${dday}</b><span>신청 마감까지</span></li>` : ''}` : '';
+    <div><dt>교육 기간</dt><dd class="num">${md(allDates[0].label)} ~ ${md(allDates[allDates.length - 1].label)}</dd></div>
+    <div><dt>교육 지역</dt><dd>${sch.length}개 지역<small>${esc(sch.map(r => r.region).join(' · '))}</small></dd></div>
+    <div><dt>운영</dt><dd>오전 · 오후<small>하루 2회</small></dd></div>
+    <div><dt>신청 마감</dt><dd>${dday ? `<span class="badge num">${dday}</span>` : '-'}<small>${esc(p.closeAt || '')}</small></dd></div>` : '';
 
   $('schedList').innerHTML = sch.map(r => `<li>
       <b>${esc(r.region)}<span class="v">${esc(r.venue)}</span></b>
@@ -433,9 +455,9 @@ function setHero(src) {
       document.documentElement.style.setProperty('--photo', `url("${url.replace(/"/g, '%22')}")`);
       if (art) {
         $('heroArt').src = url;
-        $('heroArt').hidden = false;
+        $('heroVisual').hidden = false;
         $('hero').classList.add('has-art');
-        document.body.classList.add('art-mode');
+        document.body.classList.add('art-mode', 'art');
       } else {
         $('heroBg').classList.add('photo');
         $('hero').classList.add('has-photo');
