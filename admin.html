@@ -9,16 +9,16 @@
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
-/* GM 아이덴티티 톤 — 신청 페이지와 동일한 색·형태 체계 */
+/* gm.com 톤 참고 — 블랙 상단 바 · GM 블루(#0956FF) 강조 · 신청 페이지와 동일 체계 */
 :root{
-  --ink:#0B1F3A; --ink-2:#27405F; --muted:#5B6B80;
-  --brand:#0A6FD6; --brand-deep:#1747C9; --brand-sky:#1FB0F2;
-  --grad:linear-gradient(100deg,#1FB0F2 0%,#0A6FD6 48%,#1747C9 100%);
-  --grad-v:linear-gradient(0deg,#1747C9 0%,#0A6FD6 55%,#1FB0F2 100%);
-  --brand-soft:#EAF4FD; --paper:#F5F8FC; --white:#FFFFFF; --line:#DCE4EE; --track:#E6EDF5;
+  --ink:#111418; --ink-2:#2B3038; --muted:#5E6570; --black:#0A0B0D;
+  --brand:#0956FF; --brand-deep:#0640C9; --brand-sky:#4C82FF;
+  --grad:linear-gradient(100deg,#2A6BFF 0%,#0956FF 60%,#0748E0 100%);
+  --grad-v:linear-gradient(0deg,#0748E0 0%,#0956FF 55%,#3D78FF 100%);
+  --brand-soft:#EBF1FF; --paper:#F4F5F7; --white:#FFFFFF; --line:#DDE1E7; --track:#E7EAEF;
   --signal:#E39A00; --signal-soft:#FFF4D6; --go:#0F8A5F; --stop:#C8372D;
   --r:16px; --r-sm:10px; --pill:999px;
-  --shadow:0 4px 18px rgba(10,70,160,.07);
+  --shadow:0 4px 18px rgba(10,11,13,.07);
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -29,7 +29,7 @@ button,input,select{font:inherit;color:inherit}
 .num{font-variant-numeric:tabular-nums}
 
 /* 상단 바: 흰 바탕 + 그라데이션 라인 */
-.top{background:var(--white);position:relative;padding:14px 0;box-shadow:0 2px 12px rgba(10,70,160,.06)}
+.top{background:var(--white);position:relative;padding:14px 0;box-shadow:0 2px 12px rgba(10,11,13,.06)}
 .top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--grad)}
 .top .wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .top .brand-logo{height:26px;width:auto;margin-right:4px}
@@ -39,7 +39,7 @@ button,input,select{font:inherit;color:inherit}
 .top label input{accent-color:var(--brand)}
 .btn{height:36px;padding:0 16px;border-radius:var(--pill);border:1.5px solid var(--line);background:var(--white);color:var(--ink);font-weight:700;cursor:pointer;font-size:.88rem;transition:border-color .15s}
 .btn:hover{border-color:var(--brand)}
-.link-btn{display:inline-flex;align-items:center;text-decoration:none;border:0;background:var(--grad);color:#fff;box-shadow:0 4px 12px rgba(10,111,214,.25)}
+.link-btn{display:inline-flex;align-items:center;text-decoration:none;border:0;background:var(--grad);color:#fff;box-shadow:0 4px 12px rgba(9,86,255,.25)}
 .btn.solid{background:var(--grad);border:0;color:#fff}
 .btn.ghost{background:var(--white);color:var(--ink);border-color:var(--line)}
 .session{display:inline-flex;align-items:center;gap:6px;font-size:.84rem;color:var(--muted);background:var(--brand-soft);border-radius:var(--pill);padding:4px 5px 4px 12px}
@@ -49,7 +49,7 @@ button,input,select{font:inherit;color:inherit}
 .session.warn b{color:var(--signal)}
 
 /* 로그인 */
-.login{max-width:380px;margin:12vh auto;background:var(--white);border-radius:var(--r);box-shadow:0 14px 34px rgba(10,70,160,.12);padding:30px;position:relative;overflow:hidden}
+.login{max-width:380px;margin:12vh auto;background:var(--white);border-radius:var(--r);box-shadow:0 14px 34px rgba(10,11,13,.12);padding:30px;position:relative;overflow:hidden}
 .login::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:var(--grad)}
 .login h2{margin:0 0 18px;font-size:1.2rem;letter-spacing:-.02em}
 .login h2::after{content:"";display:block;width:28px;height:4px;border-radius:2px;background:var(--grad);margin-top:8px}
@@ -180,7 +180,7 @@ footer{padding:30px 0;color:var(--muted);font-size:.82rem}
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="gmGrad" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0" stop-color="#1FB0F2"/><stop offset=".5" stop-color="#0A6FD6"/><stop offset="1" stop-color="#1747C9"/>
+    <stop offset="0" stop-color="#3D78FF"/><stop offset=".6" stop-color="#0956FF"/><stop offset="1" stop-color="#0748E0"/>
   </linearGradient></defs></svg>
 
 <header class="top">
