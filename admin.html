@@ -58,11 +58,11 @@ h2.sec small{color:var(--muted);font-weight:500;font-size:.84rem}
 .split-row .lb{width:36px;font-weight:700}
 .split-row .track{flex:1;height:10px;background:var(--track);border-radius:5px;overflow:hidden}
 .split-row .track i{display:block;height:100%;background:var(--ink-2)}
-.split-row .v{width:110px;text-align:right;color:var(--muted)}
+.split-row .v{text-align:right;color:var(--muted);white-space:nowrap}
 .period{margin-top:14px;font-size:.86rem;color:var(--muted)}
 
 /* seat timeline */
-.timeline{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px}
+.timeline{display:flex;gap:22px;justify-content:space-between;overflow-x:auto;padding-bottom:6px}
 .tl-region{flex:none}
 .tl-head{border-bottom:3px solid var(--ink);padding-bottom:6px;margin-bottom:12px;display:flex;justify-content:space-between;gap:10px;cursor:pointer}
 .tl-head b{font-size:1.02rem}
@@ -79,6 +79,7 @@ h2.sec small{color:var(--muted);font-weight:500;font-size:.84rem}
 .tank.closed{background:repeating-linear-gradient(135deg,#EEF1F5 0 6px,#E1E6EC 6px 12px)}
 .tank.closed .fill{background:#9AA6B4}
 .tank .pct{position:absolute;left:0;right:0;top:6px;font-size:.78rem;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;color:var(--ink)}
+.tank.full .pct,.tank.onfill .pct{color:#fff}
 .tank.sel{outline:3px solid var(--signal);outline-offset:2px}
 .tank-lb{font-size:.74rem;color:var(--muted);text-align:center;line-height:1.25;font-variant-numeric:tabular-nums}
 .tank-lb b{display:block;color:var(--ink);font-size:.8rem}
@@ -223,19 +224,33 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwYsk6l-NNv6ca51MjtNKRY
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 : 0;
-let D = null, timer = null;
+let D = null, timer = null, idleTimer = null;
+let TOKEN = null;                 // 로그인 토큰: 메모리에만 보관 (새로고침·재접속 시 다시 로그인)
+const IDLE_MIN = 30;              // 무활동 자동 로그아웃(분)
 
-/* ---------- 데이터 ---------- */
-async function load() {
+// 이전 버전이 브라우저에 남긴 비밀번호 정리
+try { sessionStorage.removeItem('eduAdminPw'); } catch (_) {}
+
+/* ---------- 서버 통신 ---------- */
+async function call(action, payload = {}) {
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'adminDashboard', password: sessionStorage.getItem('eduAdminPw') || '' }),
+    body: JSON.stringify({ action, ...payload }),
   });
   const json = await res.json();
-  if (!json.ok) throw new Error(json.message);
-  D = json;
-  render();
+  if (!json.ok) throw Object.assign(new Error(json.message), { code: json.code });
+  return json;
+}
+
+async function load(active) {
+  try {
+    D = await call('adminDashboard', { token: TOKEN, active: !!active });
+    render();
+  } catch (e) {
+    if (e.code === 'AUTH_EXPIRED') logout(e.message);
+    throw e;
+  }
 }
 
 const withTest = () => $('fTest').checked;
@@ -318,7 +333,7 @@ function render() {
           if (!s) return '';
           const p = pct(s.applied, s.capacity);
           return `<div class="tank-wrap">
-            <button class="tank ${level(s)}${fs === s.id ? ' sel' : ''}" data-id="${esc(s.id)}" data-region="${esc(s.region)}"
+            <button class="tank ${level(s)}${p >= 88 && level(s) === '' ? ' onfill' : ''}${fs === s.id ? ' sel' : ''}" data-id="${esc(s.id)}" data-region="${esc(s.region)}"
               aria-label="${esc(s.region)} ${esc(s.dateLabel)} ${slot} ${s.applied}/${s.capacity}명 ${p}%">
               <span class="fill" style="height:${Math.min(p, 100)}%"></span><span class="pct">${Math.round(p)}%</span></button>
             <div class="tank-lb"><b>${slot}</b>${s.applied}/${s.capacity}</div></div>`;
@@ -428,21 +443,55 @@ $('fTest').onchange = () => {
 /* ---------- 로그인 & 기타 ---------- */
 $('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
-  sessionStorage.setItem('eduAdminPw', $('pw').value);
+  const pw = $('pw').value;
+  $('pw').value = '';                     // 입력칸에 비밀번호를 남기지 않음
   $('loginErr').textContent = '';
-  try { await load(); enter(); }
-  catch (err) { sessionStorage.removeItem('eduAdminPw'); $('loginErr').textContent = err.message; }
+  try {
+    TOKEN = (await call('adminLogin', { password: pw })).token;
+    await load(true);
+    enter();
+  } catch (err) {
+    TOKEN = null;
+    $('loginErr').textContent = err.message;
+  }
 });
 
 function enter() {
   $('login').hidden = true; $('dash').hidden = false;
   ['refresh','csv','logout','testWrap'].forEach(id => $(id).hidden = false);
   clearInterval(timer);
-  timer = setInterval(() => load().catch(() => {}), 60000);
+  timer = setInterval(() => load(false).catch(() => {}), 60000);
+  bumpIdle();
 }
 
-$('refresh').onclick = () => load().catch(e => alert(e.message));
-$('logout').onclick = () => { sessionStorage.removeItem('eduAdminPw'); location.reload(); };
+/* 로그아웃: 서버 토큰 폐기 + 화면의 데이터 제거 */
+function logout(message) {
+  if (TOKEN) call('adminLogout', { token: TOKEN }).catch(() => {});
+  TOKEN = null; D = null;
+  clearInterval(timer); clearTimeout(idleTimer);
+  ['refresh','csv','logout','testWrap'].forEach(id => $(id).hidden = true);
+  $('dash').hidden = true; $('login').hidden = false;
+  ['timeline','rings','trend','dealers','appBody','stats','donut','split'].forEach(id => $(id).innerHTML = '');
+  $('title').textContent = '교육신청 관리자'; $('stamp').textContent = '';
+  $('loginErr').textContent = message || '';
+  $('pw').focus();
+}
+
+/* 무활동 자동 로그아웃 */
+function bumpIdle() {
+  if (!TOKEN) return;
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => logout(`${IDLE_MIN}분 동안 사용하지 않아 로그아웃되었습니다.`), IDLE_MIN * 60000);
+}
+let lastPing = Date.now();
+['click','keydown','scroll','pointermove'].forEach(ev => document.addEventListener(ev, () => {
+  bumpIdle();
+  // 사용 중이면 5분마다 서버 세션도 연장
+  if (TOKEN && Date.now() - lastPing > 5 * 60000) { lastPing = Date.now(); load(true).catch(() => {}); }
+}, { passive: true }));
+
+$('refresh').onclick = () => load(true).catch(e => alert(e.message));
+$('logout').onclick = () => logout('로그아웃되었습니다.');
 
 $('csv').onclick = () => {
   const head = ['신청번호','이름','판매코드','연락처','지역','교육장','전시장명','일자','구분','교육시간','신청일시','변경횟수','최종변경일시','비고'];
@@ -454,7 +503,7 @@ $('csv').onclick = () => {
   a.click();
 };
 
-if (sessionStorage.getItem('eduAdminPw')) load().then(enter).catch(() => sessionStorage.removeItem('eduAdminPw'));
+$('pw').focus();
 </script>
 </body>
 </html>
