@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>제품교육 신청</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{
+  --ink:#1E2A38; --ink-2:#34445A; --paper:#F5F7FA; --white:#FFFFFF;
+  --line:#D6DCE4; --muted:#5B6878; --signal:#F2A900; --signal-soft:#FFF4D1;
+  --go:#1F7A55; --go-soft:#E3F2EA; --stop:#B83A2E; --stop-soft:#F8E4E1;
+  --r:6px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:16px;line-height:1.6;word-break:keep-all;overflow-wrap:break-word}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--signal);outline-offset:2px}
+.wrap{max-width:640px;margin:0 auto;padding:0 20px}
+
+/* header */
+.top{background:var(--ink);color:var(--white);padding:28px 0 22px}
+.top h1{margin:0;font-size:1.75rem;font-weight:800;letter-spacing:-.02em;line-height:1.25}
+.top p{margin:6px 0 0;color:#B9C4D2;font-size:.94rem}
+.steps{display:flex;gap:6px;margin:20px 0 0;padding:0;list-style:none;counter-reset:s}
+.steps li{flex:1;font-size:.78rem;color:#8A97A8;border-top:3px solid #3A4A60;padding-top:6px;counter-increment:s}
+.steps li::before{content:counter(s) " ";font-weight:700}
+.steps li.on{color:var(--white);border-color:var(--signal)}
+.steps li.done{color:#B9C4D2;border-color:#7F8FA3}
+
+main{padding:28px 0 140px}
+.screen{display:none}
+.screen.on{display:block}
+h2{font-size:1.25rem;margin:0 0 6px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 22px;font-size:.95rem}
+
+/* form */
+.field{margin-bottom:16px}
+.field label{display:block;font-weight:600;font-size:.9rem;margin-bottom:6px}
+.field input{width:100%;height:52px;padding:0 14px;border:1.5px solid var(--line);border-radius:var(--r);background:var(--white);font-size:1.05rem}
+.field input:focus{border-color:var(--ink);outline:none;box-shadow:0 0 0 3px rgba(242,169,0,.35)}
+.hint{font-size:.82rem;color:var(--muted);margin-top:4px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;height:52px;padding:0 22px;border-radius:var(--r);border:1.5px solid var(--ink);background:var(--ink);color:var(--white);font-weight:700;cursor:pointer;font-size:1rem}
+.btn.full{width:100%}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.danger{background:transparent;color:var(--stop);border-color:var(--stop)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.row{display:flex;gap:10px}
+.row .btn{flex:1}
+
+.notice{border-left:4px solid var(--signal);background:var(--signal-soft);padding:12px 14px;font-size:.9rem;border-radius:0 var(--r) var(--r) 0;margin:0 0 20px}
+.notice.stop{border-color:var(--stop);background:var(--stop-soft)}
+
+/* route picker */
+.route{list-style:none;margin:0;padding:0;position:relative}
+.route::before{content:"";position:absolute;left:15px;top:14px;bottom:14px;width:3px;background:repeating-linear-gradient(var(--ink) 0 10px,transparent 10px 18px)}
+.stop{position:relative;padding:0 0 26px 48px}
+.stop-pin{position:absolute;left:0;top:0;width:33px;height:33px;border-radius:50%;background:var(--signal);color:var(--ink);font-weight:800;display:grid;place-items:center;border:3px solid var(--paper);font-size:.95rem}
+.stop h3{margin:2px 0 2px;font-size:1.15rem;letter-spacing:-.01em}
+.stop .venue{margin:0 0 10px;color:var(--muted);font-size:.86rem}
+.day{display:grid;grid-template-columns:72px 1fr 1fr;gap:8px;align-items:stretch;margin-bottom:8px}
+.day-label{font-weight:700;font-size:.95rem;padding-top:12px;font-variant-numeric:tabular-nums}
+.seat{text-align:left;border:1.5px solid var(--line);background:var(--white);border-radius:var(--r);padding:9px 11px;cursor:pointer;min-height:64px;display:flex;flex-direction:column;justify-content:center}
+.seat b{font-size:.95rem}
+.seat small{display:block;font-size:.76rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.seat .left{font-size:.8rem;font-weight:700;color:var(--go)}
+.seat.low .left{color:#9A6A00}
+.seat:hover:not(:disabled){border-color:var(--ink-2)}
+.seat[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--white)}
+.seat[aria-pressed="true"] small,.seat[aria-pressed="true"] .left{color:#D8E0EA}
+.seat:disabled{cursor:not-allowed;background:#EEF1F5;color:#8C97A5}
+.seat:disabled .left{color:var(--stop)}
+.seat.mine{border-style:dashed;border-color:var(--signal);background:var(--signal-soft);color:var(--ink)}
+.seat.mine .left{color:var(--ink)}
+
+/* sticky bar */
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--white);border-top:1px solid var(--line);padding:12px 0 calc(12px + env(safe-area-inset-bottom));transform:translateY(110%);transition:transform .2s}
+.bar.on{transform:none}
+.bar .wrap{display:flex;gap:12px;align-items:center}
+.bar-text{flex:1;font-size:.9rem;line-height:1.35}
+.bar-text b{display:block;font-size:1rem}
+
+/* summary sheet */
+.sheet{background:var(--white);border:1px solid var(--line);border-radius:var(--r);margin-bottom:20px}
+.sheet dl{margin:0;display:grid;grid-template-columns:96px 1fr}
+.sheet dt,.sheet dd{margin:0;padding:12px 16px;border-bottom:1px solid var(--line)}
+.sheet dt{color:var(--muted);font-size:.88rem;background:#FAFBFC}
+.sheet dd{font-weight:600}
+.sheet dl > :nth-last-child(-n+2){border-bottom:0}
+.sheet .hero{padding:18px 16px;border-bottom:1px solid var(--line)}
+.sheet .hero .where{font-size:1.35rem;font-weight:800;letter-spacing:-.01em}
+.sheet .hero .when{font-size:1.05rem;font-variant-numeric:tabular-nums}
+.sheet dd input{width:100%;height:40px;padding:0 10px;border:1.5px solid var(--line);border-radius:var(--r);font-weight:600}
+
+.stamp{display:inline-block;border:2px solid var(--go);color:var(--go);font-weight:800;padding:2px 10px;border-radius:var(--r);transform:rotate(-3deg);margin-bottom:12px}
+
+/* timetable */
+details.tt{background:var(--white);border:1px solid var(--line);border-radius:var(--r);margin-top:28px}
+details.tt summary{cursor:pointer;padding:14px 16px;font-weight:700}
+.tt-scroll{overflow-x:auto}
+.tt table{width:100%;border-collapse:collapse;font-size:.84rem;min-width:520px}
+.tt th,.tt td{padding:8px 10px;border-top:1px solid var(--line);text-align:left;vertical-align:top}
+.tt th{background:#FAFBFC;font-weight:600;color:var(--muted)}
+.tt td.t{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tt td.hl{background:var(--signal-soft);font-weight:700}
+.tt tr.brk td{color:var(--muted)}
+
+footer{color:var(--muted);font-size:.82rem;text-align:center;padding:10px 0 30px}
+.link{background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:.88rem}
+
+/* loading & toast */
+.loading{position:fixed;inset:0;background:rgba(245,247,250,.7);display:none;place-items:center;z-index:20}
+.loading.on{display:grid}
+.spin{width:36px;height:36px;border:4px solid var(--line);border-top-color:var(--ink);border-radius:50%;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed;left:50%;top:16px;transform:translate(-50%,-300%);background:var(--stop);color:#fff;padding:12px 18px;border-radius:var(--r);font-size:.92rem;z-index:30;max-width:92vw;transition:transform .25s}
+.toast.on{transform:translate(-50%,0)}
+.toast.ok{background:var(--go)}
+
+@media (max-width:420px){
+  .day{grid-template-columns:1fr 1fr}
+  .day-label{grid-column:1/-1;padding-top:0}
+  .top h1{font-size:1.5rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <h1 id="title">제품교육 신청</h1>
+    <p id="period">신청 기간을 불러오는 중입니다</p>
+    <ol class="steps" id="steps" aria-label="신청 단계">
+      <li data-step="verify">본인 확인</li>
+      <li data-step="select">과정 선택</li>
+      <li data-step="confirm">신청 확인</li>
+      <li data-step="done">완료</li>
+    </ol>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- 1. 본인 확인 -->
+  <section class="screen on" id="s-verify">
+    <h2>신청 대상 확인</h2>
+    <p class="lead">판매코드와 이름을 입력하면 신청 대상 여부를 확인합니다. 이미 신청했다면 신청 내역을 확인하고 변경할 수 있습니다.</p>
+    <form id="verifyForm" novalidate>
+      <div class="field">
+        <label for="code">판매코드</label>
+        <input id="code" autocomplete="off" autocapitalize="characters" required>
+      </div>
+      <div class="field">
+        <label for="name">이름</label>
+        <input id="name" autocomplete="name" required>
+      </div>
+      <button class="btn full" type="submit">신청 대상 확인</button>
+    </form>
+  </section>
+
+  <!-- 1-b. 기존 신청 내역 -->
+  <section class="screen" id="s-mine">
+    <h2>신청 내역</h2>
+    <p class="lead" id="mineLead"></p>
+    <div id="mineSheet"></div>
+    <div id="mineNotice"></div>
+    <div class="row" id="mineActions">
+      <button class="btn" id="goChange" type="button">과정 변경</button>
+    </div>
+    <p style="text-align:center;margin-top:18px"><button class="link" id="goCancel" type="button">신청 취소</button></p>
+  </section>
+
+  <!-- 2. 과정 선택 -->
+  <section class="screen" id="s-select">
+    <h2 id="selectTitle">교육 과정 선택</h2>
+    <p class="lead" id="selectLead">지역과 날짜, 오전·오후 중 하나를 선택하세요. 정원이 차면 자동으로 마감됩니다.</p>
+    <ol class="route" id="route"></ol>
+    <div id="ttSelect"></div>
+  </section>
+
+  <!-- 3. 확인 -->
+  <section class="screen" id="s-confirm">
+    <h2 id="confirmTitle">신청 내용 확인</h2>
+    <p class="lead">아래 내용이 맞는지 확인한 뒤 신청을 완료하세요.</p>
+    <div id="confirmSheet"></div>
+    <div class="notice" id="confirmNotice"></div>
+    <div class="row">
+      <button class="btn ghost" type="button" data-go="select">다시 선택</button>
+      <button class="btn" type="button" id="submitBtn">신청 완료하기</button>
+    </div>
+  </section>
+
+  <!-- 4. 완료 -->
+  <section class="screen" id="s-done">
+    <span class="stamp" id="doneStamp">신청 완료</span>
+    <h2 id="doneTitle">신청이 완료되었습니다</h2>
+    <p class="lead" id="doneLead"></p>
+    <div id="doneSheet"></div>
+    <div id="ttDone"></div>
+    <p style="margin-top:24px"><button class="btn ghost full" type="button" id="restart">처음 화면으로</button></p>
+  </section>
+
+</main>
+
+<div class="bar" id="bar" aria-live="polite">
+  <div class="wrap">
+    <div class="bar-text" id="barText"></div>
+    <button class="btn" type="button" id="toConfirm">다음</button>
+  </div>
+</div>
+
+<footer id="contact"></footer>
+<div class="loading" id="loading" aria-hidden="true"><div class="spin"></div></div>
+<div class="toast" id="toast" role="alert"></div>
+
+<script>
+/* ▼ Apps Script 웹 앱 배포 주소(/exec)를 입력하세요 */
+const API_URL = 'https://script.google.com/macros/s/여기에_배포ID/exec';
+
+const TIMETABLE = [
+  ['09:00~09:10','13:00~13:10',"10'",'Leadership Welcome Message','VP'],
+  ['09:10~09:20','13:10~13:20',"10'",'Brand Strategy','Mkt.'],
+  ['09:20~10:00','13:20~14:00',"40'",'Product Training – USPs and Key Functions','Sales Training'],
+  ['10:00~10:10','14:00~14:10',"10'",'Break time','', true],
+  ['10:10~11:00','14:10~15:00',"50'",'E7 Technology & OnStar refresh','CCA Tech. Training, DBT'],
+  ['11:00~11:40','15:00~15:40',"40'",'E7 Experience and Infotainment Practice Using a Checklist','Sales, CCA Tech. Training'],
+  ['11:40~11:50','15:40~15:50',"10'",'Wrap-up, Q&A','Sales Training'],
+  ['11:50~12:50','15:50~16:50',"60'",'Lunch','', true],
+];
+
+const S = { code:'', name:'', data:null, selected:null, mode:'apply' };
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function api(action, payload = {}) {
+  $('loading').classList.add('on');
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // CORS preflight 회피
+      body: JSON.stringify({ action, ...payload }),
+    });
+    const json = await res.json();
+    if (!json.ok) throw Object.assign(new Error(json.message), { code: json.code });
+    return json;
+  } catch (e) {
+    if (!e.code) e.message = '서버에 연결하지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요.';
+    throw e;
+  } finally {
+    $('loading').classList.remove('on');
+  }
+}
+
+function toast(msg, ok) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast on' + (ok ? ' ok' : '');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.className = 'toast' + (ok ? ' ok' : ''), 3800);
+}
+
+const ORDER = ['verify','select','confirm','done'];
+function show(name, stepName) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 's-' + name));
+  const step = stepName || name;
+  const idx = ORDER.indexOf(step);
+  document.querySelectorAll('#steps li').forEach((li, i) => {
+    li.classList.toggle('on', i === idx);
+    li.classList.toggle('done', i < idx);
+  });
+  $('bar').classList.toggle('on', name === 'select' && !!S.selected);
+  window.scrollTo(0, 0);
+}
+
+function timetable(slot, open) {
+  const hl = i => slot === (i === 0 ? '오전' : '오후') ? ' hl' : '';
+  const rows = TIMETABLE.map(r => `<tr class="${r[5] ? 'brk' : ''}">
+      <td class="t${hl(0)}">${r[0]}</td><td class="t${hl(1)}">${r[1]}</td>
+      <td class="t">${r[2]}</td><td>${esc(r[3])}</td><td>${esc(r[4])}</td></tr>`).join('');
+  return `<details class="tt"${open ? ' open' : ''}><summary>교육 시간표</summary>
+    <div class="tt-scroll"><table>
+      <thead><tr><th>오전반</th><th>오후반</th><th>시간</th><th>내용</th><th>비고</th></tr></thead>
+      <tbody>${rows}</tbody></table></div></details>`;
+}
+
+function sessionById(id) { return S.data.sessions.find(s => s.id === id); }
+
+/* ---------- 초기 정보 ---------- */
+async function init() {
+  $('ttSelect').innerHTML = timetable();
+  try {
+    const info = await api('info');
+    $('title').textContent = info.title + ' 신청';
+    document.title = info.title + ' 신청';
+    const p = info.period;
+    $('period').textContent = `신청 기간 ${p.openAt} ~ ${p.closeAt}` +
+      (p.state === 'before' ? ' · 신청 시작 전' : p.state === 'after' ? ' · 신규 신청 마감' : '');
+    if (info.contact) $('contact').textContent = '문의 ' + info.contact;
+  } catch (e) {
+    $('period').textContent = '신청 정보를 불러오지 못했습니다.';
+  }
+}
+
+/* ---------- 1. 본인 확인 ---------- */
+$('verifyForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const code = $('code').value.trim(), name = $('name').value.trim();
+  if (!code || !name) return toast('판매코드와 이름을 모두 입력해 주세요.');
+  try {
+    S.data = await api('verify', { code, name });
+    S.code = code; S.name = name; S.selected = null;
+    route();
+  } catch (err) { toast(err.message); }
+});
+
+function route() {
+  const d = S.data;
+  if (d.application) return renderMine();
+  if (d.period.state === 'before') return toast(`신청은 ${d.period.openAt}부터 가능합니다.`);
+  if (d.period.state === 'after') return toast('신규 신청 기간이 종료되었습니다.');
+  S.mode = 'apply';
+  renderSelect();
+  show('select');
+}
+
+/* ---------- 기존 신청 ---------- */
+function summary(a, applicant, opts = {}) {
+  return `<div class="sheet">
+    <div class="hero">
+      <div class="where">${esc(a.region)} · ${esc(a.venue)}</div>
+      <div class="when">${esc(a.dateLabel)} ${esc(a.slot)} ${esc(a.time)}</div>
+    </div>
+    <dl>
+      <dt>이름</dt><dd>${esc(applicant.name)}</dd>
+      <dt>판매코드</dt><dd>${esc(applicant.code)}</dd>
+      <dt>전시장</dt><dd>${esc(applicant.dealer || '-')}</dd>
+      <dt>연락처</dt><dd>${opts.editPhone
+        ? `<input id="phone" inputmode="tel" value="${esc(opts.phone)}" aria-label="연락처">`
+        : esc(opts.phone || '-')}</dd>
+      ${a.no ? `<dt>신청번호</dt><dd>${esc(a.no)}</dd>` : ''}
+    </dl></div>`;
+}
+
+function renderMine() {
+  const d = S.data, a = d.application;
+  $('mineLead').textContent = `${d.applicant.name}님은 아래 과정에 신청되어 있습니다.`;
+  $('mineSheet').innerHTML = summary(a, d.applicant, { phone: a.phone });
+  if (d.canChange) {
+    $('mineNotice').innerHTML = `<div class="notice">과정 변경·취소는 <b>${esc(a.changeDeadline)} 23:59</b>까지 가능합니다. (교육일 ${d.changeDays}일 전)</div>`;
+    $('goChange').hidden = false; $('goCancel').hidden = false;
+  } else {
+    $('mineNotice').innerHTML = `<div class="notice stop">변경 가능 기간(${esc(a.changeDeadline)})이 지나 과정을 변경하거나 취소할 수 없습니다. 부득이한 경우 담당자에게 문의해 주세요.</div>`;
+    $('goChange').hidden = true; $('goCancel').hidden = true;
+  }
+  show('mine', 'verify');
+}
+
+$('goChange').addEventListener('click', () => {
+  S.mode = 'change'; S.selected = null;
+  renderSelect();
+  show('select');
+});
+
+$('goCancel').addEventListener('click', async () => {
+  const a = S.data.application;
+  if (!confirm(`${a.region} ${a.dateLabel} ${a.slot} 과정 신청을 취소할까요?\n취소 후 자리는 다른 신청자에게 넘어갑니다.`)) return;
+  try {
+    S.data = await api('cancel', { code: S.code, name: S.name });
+    toast('신청을 취소했습니다.', true);
+    S.selected = null;
+    if (S.data.period.state === 'open') { S.mode = 'apply'; renderSelect(); show('select'); }
+    else show('verify');
+  } catch (e) { toast(e.message); }
+});
+
+/* ---------- 2. 과정 선택 ---------- */
+function renderSelect() {
+  const d = S.data;
+  const mineId = S.mode === 'change' ? d.application.sessionId : null;
+  $('selectTitle').textContent = S.mode === 'change' ? '변경할 과정 선택' : '교육 과정 선택';
+  $('selectLead').textContent = S.mode === 'change'
+    ? '새로 들을 과정을 선택하세요. 점선으로 표시된 과정이 현재 신청한 과정입니다.'
+    : '지역과 날짜, 오전·오후 중 하나를 선택하세요. 정원이 차면 자동으로 마감됩니다.';
+
+  const regions = [];
+  d.sessions.forEach(s => {
+    let r = regions.find(x => x.no === s.regionNo);
+    if (!r) regions.push(r = { no: s.regionNo, name: s.region, venue: s.venue, days: [] });
+    let day = r.days.find(x => x.date === s.date);
+    if (!day) r.days.push(day = { date: s.date, label: s.dateLabel, slots: [] });
+    day.slots.push(s);
+  });
+
+  $('route').innerHTML = regions.map(r => `
+    <li class="stop">
+      <span class="stop-pin" aria-hidden="true">${r.no}</span>
+      <h3>${esc(r.name)}</h3>
+      <p class="venue">${esc(r.venue)}</p>
+      ${r.days.map(day => `<div class="day">
+        <div class="day-label">${esc(day.label)}</div>
+        ${['오전','오후'].map(slot => {
+          const s = day.slots.find(x => x.slot === slot);
+          return s ? seat(s, mineId) : '<div></div>';
+        }).join('')}
+      </div>`).join('')}
+    </li>`).join('');
+
+  $('route').querySelectorAll('.seat:not(:disabled)').forEach(b =>
+    b.addEventListener('click', () => pick(b.dataset.id)));
+  updateBar();
+}
+
+function seat(s, mineId) {
+  const mine = s.id === mineId;
+  let left, disabled = false, cls = 'seat';
+  if (mine) { left = '현재 신청'; disabled = true; cls += ' mine'; }
+  else if (s.status === 'closed') { left = '신청 종료'; disabled = true; }
+  else if (s.status === 'full') { left = '모집 마감'; disabled = true; }
+  else {
+    left = `잔여 ${s.remaining}석`;
+    if (s.remaining <= Math.max(3, Math.ceil(s.capacity * 0.2))) { cls += ' low'; left = `마감 임박 · 잔여 ${s.remaining}석`; }
+  }
+  const pressed = S.selected === s.id;
+  return `<button type="button" class="${cls}" data-id="${esc(s.id)}" aria-pressed="${pressed}" ${disabled ? 'disabled' : ''}
+      aria-label="${esc(s.region)} ${esc(s.dateLabel)} ${s.slot} ${esc(s.time)}, ${left}">
+      <b>${s.slot}</b><small>${esc(s.time)}</small><span class="left">${left}</span></button>`;
+}
+
+function pick(id) {
+  S.selected = id;
+  $('route').querySelectorAll('.seat').forEach(b => b.setAttribute('aria-pressed', b.dataset.id === id));
+  updateBar();
+}
+
+function updateBar() {
+  const s = S.selected && sessionById(S.selected);
+  if (s) $('barText').innerHTML = `<b>${esc(s.region)} ${esc(s.dateLabel)} ${s.slot}</b>${esc(s.time)} · 잔여 ${s.remaining}석`;
+  $('bar').classList.toggle('on', !!s && $('s-select').classList.contains('on'));
+}
+
+$('toConfirm').addEventListener('click', () => {
+  const s = sessionById(S.selected);
+  if (!s) return;
+  const d = S.data;
+  const phone = S.mode === 'change' ? d.application.phone : d.applicant.phone;
+  $('confirmTitle').textContent = S.mode === 'change' ? '변경 내용 확인' : '신청 내용 확인';
+  let before = '';
+  if (S.mode === 'change') {
+    const a = d.application;
+    before = `<div class="notice">기존 과정 <b>${esc(a.region)} ${esc(a.dateLabel)} ${esc(a.slot)}</b>에서 아래 과정으로 변경합니다.</div>`;
+  }
+  $('confirmSheet').innerHTML = before + summary(s, d.applicant, { editPhone: true, phone });
+  $('confirmNotice').innerHTML = `교육일 ${d.changeDays}일 전인 <b>${esc(s.deadline)} 23:59</b>까지 이 페이지에서 과정을 변경하거나 취소할 수 있습니다. 연락처가 다르면 수정해 주세요.`;
+  $('submitBtn').textContent = S.mode === 'change' ? '변경 완료하기' : '신청 완료하기';
+  show('confirm');
+  $('ttSelect').innerHTML = timetable(s.slot);
+});
+
+document.querySelectorAll('[data-go="select"]').forEach(b => b.addEventListener('click', () => show('select')));
+
+/* ---------- 3. 제출 ---------- */
+$('submitBtn').addEventListener('click', async () => {
+  const phone = ($('phone') || {}).value || '';
+  const action = S.mode === 'change' ? 'change' : 'apply';
+  $('submitBtn').disabled = true;
+  try {
+    S.data = await api(action, { code: S.code, name: S.name, sessionId: S.selected, phone });
+    renderDone(action);
+  } catch (e) {
+    toast(e.message);
+    if (['FULL','SESSION_CLOSED'].includes(e.code)) {
+      try { S.data = await api('verify', { code: S.code, name: S.name }); } catch (_) {}
+      S.selected = null; renderSelect(); show('select');
+    }
+  } finally {
+    $('submitBtn').disabled = false;
+  }
+});
+
+/* ---------- 4. 완료 ---------- */
+function renderDone(action) {
+  const d = S.data, a = d.application;
+  const changed = action === 'change';
+  $('doneStamp').textContent = changed ? '변경 완료' : '신청 완료';
+  $('doneTitle').textContent = changed ? '과정이 변경되었습니다' : '신청이 완료되었습니다';
+  $('doneLead').textContent = `${a.changeDeadline} 23:59까지 같은 판매코드와 이름으로 접속하면 과정을 변경할 수 있습니다.`;
+  $('doneSheet').innerHTML = summary(a, d.applicant, { phone: a.phone });
+  $('ttDone').innerHTML = timetable(a.slot, true);
+  S.selected = null;
+  show('done');
+}
+
+$('restart').addEventListener('click', () => {
+  S.data = null; S.selected = null;
+  $('verifyForm').reset();
+  $('ttSelect').innerHTML = timetable();
+  show('verify');
+});
+
+init();
+</script>
+</body>
+</html>
