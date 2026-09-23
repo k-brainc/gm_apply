@@ -57,7 +57,9 @@ button,input{font:inherit;color:inherit}
 .art-mode .t-main::before{background:var(--photo) right -30px bottom -6px/70% auto no-repeat;opacity:.3}
 
 .brand-logo{display:block;height:30px;width:auto;margin-bottom:18px}
-.hero h1{margin:0;font-size:2.6rem;font-weight:800;letter-spacing:-.04em;line-height:1.1}
+.kicker{margin:0 0 8px;font-size:1.05rem;font-weight:800;letter-spacing:.14em;color:#8FB6FF}
+.hero.compact .kicker{font-size:.78rem;margin-bottom:4px;letter-spacing:.12em}
+.hero h1{margin:0;font-size:clamp(1.7rem,2.9vw,2.2rem);font-weight:800;letter-spacing:-.035em;line-height:1.18;word-break:keep-all}
 .hero h1::after{content:"";display:block;width:44px;height:5px;border-radius:3px;background:#fff;margin-top:16px}
 .hero .sub{margin:14px 0 0;color:rgba(255,255,255,.88);font-size:.96rem}
 
@@ -67,7 +69,7 @@ button,input{font:inherit;color:inherit}
 .facts > div:nth-child(odd){padding-right:16px;border-right:1px solid rgba(255,255,255,.18)}
 .facts > div:nth-child(even){padding-left:18px}
 .facts dt{font-size:.78rem;color:rgba(255,255,255,.75);margin-bottom:2px}
-.facts dd{margin:0;font-size:1.12rem;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.facts dd{margin:0;font-size:1.12rem;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:normal;word-break:keep-all}
 .facts dd small{display:block;font-size:.76rem;font-weight:500;color:rgba(255,255,255,.8);letter-spacing:0;white-space:normal}
 .facts .badge{display:inline-block;background:var(--brand);color:#fff;border-radius:var(--pill);padding:0 12px;font-size:1.02rem}
 
@@ -105,6 +107,14 @@ h2{font-size:1.35rem;margin:0 0 8px;letter-spacing:-.025em}
 h2::after{content:"";display:block;width:28px;height:4px;border-radius:2px;background:var(--grad);margin-top:8px}
 .lead{color:var(--muted);margin:0 0 20px;font-size:.95rem}
 
+
+/* ---------- 마감 안내 배너 ---------- */
+.deadline-bar{position:relative;z-index:2;margin:0;background:var(--brand);color:#fff;font-weight:700;font-size:1rem;letter-spacing:-.01em;
+  display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;text-align:center}
+.deadline-bar .ic{width:1.15em;height:1.15em}
+.deadline-bar.over{background:var(--stop)}
+.hero.compact .deadline-bar{font-size:.88rem;padding:8px 20px}
+@media (max-width:560px){ .deadline-bar{font-size:.92rem;padding:10px 16px} }
 
 /* ---------- 아이콘 ---------- */
 .ic{width:1.05em;height:1.05em;flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.16em}
@@ -254,7 +264,7 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
 @keyframes sp{to{transform:rotate(360deg)}}
 
 @media (max-width:560px){
-  .hero h1{font-size:2.2rem}
+  .hero h1{font-size:1.8rem}
   .fields{grid-template-columns:1fr}
   .t-region{font-size:1.95rem}
 }
@@ -296,11 +306,13 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
 
 <header class="hero" id="hero">
   <div class="hero-bg" id="heroBg"></div>
+  <p class="deadline-bar" id="deadlineBar" hidden></p>
   <div class="hero-grid">
     <div class="hero-text">
       <!-- 로고(선택): 저장소 images/logo-white.svg 에 흰색(반전) 로고를 올리면 표시 -->
       <img class="brand-logo" src="images/logo-white.svg" alt="" onerror="this.remove()">
-      <h1 id="title">제품교육 신청</h1>
+      <p class="kicker" id="kicker">BUICK ELECTRA E7</p>
+      <h1 id="title">신차제품교육 과정신청페이지</h1>
       <p class="sub" id="period">&nbsp;</p>
       <dl class="facts" id="facts"></dl>
       <p class="who" id="who" hidden></p>
@@ -467,8 +479,11 @@ const md = label => label.split('(')[0];
 function paintInfo(info) {
   S.info = info;
   if (info.timetable) S.timetable = info.timetable;
-  $('title').textContent = info.title;
-  document.title = info.title + ' 신청';
+  // 설정 시트 '교육명'이 첫 줄(차명), 그 뒤 '|' 또는 줄바꿈이 있으면 둘째 줄로 표시
+  const parts = String(info.title || '').split(/[|\n]/).map(t => t.trim()).filter(Boolean);
+  $('kicker').textContent = parts[0] || 'BUICK ELECTRA E7';
+  $('title').textContent = parts[1] || '신차제품교육 과정신청페이지';
+  document.title = `${$('kicker').textContent} ${$('title').textContent}`;
   const p = info.period || {};
   $('period').textContent = `신청 기간 ${p.openAt} ~ ${p.closeAt}` +
     (p.state === 'before' ? ' · 신청 시작 전' : p.state === 'after' ? ' · 신규 신청 마감' : '');
@@ -483,8 +498,19 @@ function paintInfo(info) {
     const days = Math.ceil((close - Date.now()) / 86400000);
     dday = p.state === 'after' ? '마감' : days <= 0 ? 'D-Day' : 'D-' + days;
   }
+  // 마감 안내 배너: 설정 시트 '신청마감' 날짜를 그대로 사용
+  const bar = $('deadlineBar');
+  if (p.closeRaw) {
+    const c = p.closeRaw.split(' ')[0].split('-');
+    bar.innerHTML = `<svg class="ic"><use href="#i-alarm"/></svg>` + (p.state === 'after'
+      ? '교육 접수 신청이 마감되었습니다.'
+      : `교육 접수 신청 <b>${+c[1]}월 ${+c[2]}일</b> 마감됩니다.`);
+    bar.classList.toggle('over', p.state === 'after');
+    bar.hidden = false;
+  } else bar.hidden = true;
+
   $('facts').innerHTML = allDates.length ? `
-    <div><dt><svg class="ic"><use href="#i-cal"/></svg>교육 기간</dt><dd class="num">${md(allDates[0].label)} ~ ${md(allDates[allDates.length - 1].label)}</dd></div>
+    <div><dt><svg class="ic"><use href="#i-cal"/></svg>교육 기간</dt><dd class="num" style="white-space:nowrap">${md(allDates[0].label)}~${md(allDates[allDates.length - 1].label)}</dd></div>
     <div><dt><svg class="ic"><use href="#i-pin"/></svg>교육 지역</dt><dd>${sch.length}개 지역<small>${esc(sch.map(r => r.region).join(' · '))}</small></dd></div>
     <div><dt><svg class="ic"><use href="#i-clock"/></svg>운영</dt><dd>오전 · 오후<small>하루 2회</small></dd></div>
     <div><dt><svg class="ic"><use href="#i-alarm"/></svg>신청 마감</dt><dd>${dday ? `<span class="badge num">${dday}</span>` : '-'}<small>${esc(p.closeAt || '')}</small></dd></div>` : '';
