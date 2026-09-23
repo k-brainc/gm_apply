@@ -267,11 +267,11 @@ footer{padding:30px 0;color:var(--muted);font-size:.82rem}
     <div class="filters">
       <select id="fRegion" aria-label="지역"></select>
       <select id="fSession" aria-label="과정"></select>
-      <input id="fQuery" placeholder="이름, 판매코드, 전시장, 연락처 검색" aria-label="검색">
+      <input id="fQuery" placeholder="이름, 판매코드, 전시장, 연락처, 차량번호 검색" aria-label="검색">
       <button class="clear" id="clearFilter" type="button">필터 해제</button>
     </div>
     <div class="panel"><table>
-      <thead><tr><th>이름</th><th>판매코드</th><th>연락처</th><th>지역</th><th>전시장명</th><th>과정</th><th>신청일시</th><th class="r">변경</th></tr></thead>
+      <thead><tr><th>이름</th><th>판매코드</th><th>연락처</th><th>차량번호</th><th>지역</th><th>전시장명</th><th>과정</th><th>신청일시</th><th class="r">변경</th></tr></thead>
       <tbody id="appBody"></tbody>
     </table></div>
   </section>
@@ -477,7 +477,7 @@ function filtered() {
   const fr = $('fRegion').value, fs = $('fSession').value, q = $('fQuery').value.trim().toLowerCase();
   return applicantsView()
     .filter(a => (!fr || a.region === fr) && (!fs || a.sessionId === fs))
-    .filter(a => !q || [a.name, a.code, a.dealer, a.phone].join(' ').toLowerCase().includes(q))
+    .filter(a => !q || [a.name, a.code, a.dealer, a.phone, a.plate].join(' ').toLowerCase().includes(q))
     .sort((a, b) => a.regionNo - b.regionNo || a.sessionId.localeCompare(b.sessionId) || a.appliedAt.localeCompare(b.appliedAt));
 }
 
@@ -488,12 +488,12 @@ function renderList() {
   $('listCount').textContent = (s ? `${s.region} ${s.dateLabel} ${s.slot} · ` : fr ? `${fr} · ` : '') + `${rows.length}명`;
   $('appBody').innerHTML = rows.length ? rows.map(a => `
     <tr>
-      <td><b>${esc(a.name)}</b>${a.test ? ' <span class="tag">테스트</span>' : ''}</td><td class="num">${esc(a.code)}</td><td class="num">${esc(a.phone)}</td>
+      <td><b>${esc(a.name)}</b>${a.test ? ' <span class="tag">테스트</span>' : ''}</td><td class="num">${esc(a.code)}</td><td class="num">${esc(a.phone)}</td><td class="num">${esc(a.plate || '-')}</td>
       <td>${esc(a.region)}</td><td>${esc(a.dealer)}</td>
       <td class="num">${esc(a.dateLabel)} ${esc(a.slot)}</td><td class="num">${esc(a.appliedAt.slice(5, 16))}</td>
       <td class="r num">${a.changes || ''}</td>
     </tr>`).join('')
-    : '<tr><td colspan="8" class="empty">조건에 맞는 신청자가 없습니다.</td></tr>';
+    : '<tr><td colspan="9" class="empty">조건에 맞는 신청자가 없습니다.</td></tr>';
 }
 
 $('fRegion').onchange = () => { $('fSession').value = ''; render(); };
@@ -609,8 +609,8 @@ $('refresh').onclick = () => load().catch(e => { if (e.code !== 'AUTH_EXPIRED') 
 $('logout').onclick = () => logout('로그아웃되었습니다.');
 
 $('csv').onclick = () => {
-  const head = ['신청번호','이름','판매코드','연락처','지역','교육장','전시장명','일자','구분','교육시간','신청일시','변경횟수','최종변경일시','비고'];
-  const rows = filtered().map(a => [a.no, a.name, a.code, a.phone, a.region, a.venue, a.dealer, a.dateLabel, a.slot, a.time, a.appliedAt, a.changes, a.updatedAt, a.test ? '테스트' : '']);
+  const head = ['신청번호','이름','판매코드','연락처','차량번호','지역','교육장','전시장명','일자','구분','교육시간','신청일시','변경횟수','최종변경일시','비고'];
+  const rows = filtered().map(a => [a.no, a.name, a.code, a.phone, a.plate, a.region, a.venue, a.dealer, a.dateLabel, a.slot, a.time, a.appliedAt, a.changes, a.updatedAt, a.test ? '테스트' : '']);
   const csv = '\uFEFF' + [head, ...rows].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
