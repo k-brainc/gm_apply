@@ -17,7 +17,7 @@
   --ink:#111418; --ink-2:#2B3038; --muted:#5E6570; --black:#0A0B0D;
   --brand:#0956FF; --brand-deep:#0640C9; --brand-sky:#4C82FF;
   --grad:linear-gradient(100deg,#2A6BFF 0%,#0956FF 60%,#0748E0 100%);
-  --gold:#FFC72C; --brand-soft:#EBF1FF; --paper:#F4F5F7; --white:#FFFFFF; --line:#DDE1E7;
+  --gold:linear-gradient(180deg,#F0D693 0%,#E4C46B 45%,#D2AE4C 100%); --brand-soft:#EBF1FF; --paper:#F4F5F7; --white:#FFFFFF; --line:#DDE1E7;
   --warn:#C77F00; --stop:#C8372D; --stop-soft:#FCE9E7; --go:#0F8A5F;
   --r:16px; --r-sm:12px; --pill:999px;
   --shadow:0 14px 34px rgba(10,11,13,.10);
@@ -102,20 +102,20 @@ body.at-verify.art .verify-grid .fields{grid-template-columns:1fr 1fr}
 main{padding:0 0 150px}
 .screen{display:none}
 .screen.on{display:block;padding-top:30px}
-#s-verify.on{padding-top:0}
+#s-verify.on{padding-top:26px}
 h2{font-size:1.35rem;margin:0 0 8px;letter-spacing:-.025em}
 h2::after{content:"";display:block;width:28px;height:4px;border-radius:2px;background:var(--grad);margin-top:8px}
 .lead{color:var(--muted);margin:0 0 20px;font-size:.95rem}
 
 
 /* ---------- 마감 안내 배너 ---------- */
-.deadline-bar{position:relative;z-index:3;margin:-32px 0 22px;background:var(--gold);color:var(--black);font-weight:800;font-size:1.08rem;letter-spacing:-.02em;
-  border-radius:var(--r-sm);box-shadow:0 12px 30px rgba(255,199,44,.35);
-  display:flex;align-items:center;justify-content:center;gap:10px;padding:16px 22px;text-align:center}
+.deadline-bar{display:none;position:relative;z-index:3;margin:0;background:var(--gold);color:var(--black);font-weight:800;font-size:1.08rem;letter-spacing:-.02em;
+  align-items:center;justify-content:center;gap:10px;padding:8px 20px;text-align:center}
+body.at-verify .deadline-bar:not([hidden]){display:flex}
 .deadline-bar .ic{width:1.2em;height:1.2em}
 .deadline-bar b{text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:2px}
-.deadline-bar.over{background:var(--stop);color:#fff;box-shadow:0 12px 30px rgba(200,55,45,.3)}
-@media (max-width:560px){ .deadline-bar{font-size:.96rem;padding:14px 16px;margin:-26px 0 18px} }
+.deadline-bar.over{background:var(--stop);color:#fff}
+@media (max-width:560px){ .deadline-bar{font-size:.96rem;padding:8px 14px} }
 
 /* ---------- 아이콘 ---------- */
 .ic{width:1.05em;height:1.05em;flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.16em}
@@ -325,12 +325,13 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
   </div>
 </header>
 
+<p class="deadline-bar" id="deadlineBar" hidden></p>
+
 <main class="wrap">
   <div id="testBanner"></div>
 
   <!-- 1. 본인 확인 -->
   <section class="screen on" id="s-verify">
-   <p class="deadline-bar" id="deadlineBar" hidden></p>
    <div class="verify-grid">
     <div class="login-card">
       <h2>신청 대상 확인</h2>
