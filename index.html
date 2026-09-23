@@ -42,9 +42,9 @@ button,input{font:inherit;color:inherit}
   linear-gradient(90deg,rgba(10,11,13,.92) 0%,rgba(10,11,13,.6) 45%,rgba(10,11,13,0) 80%)}
 
 /* 기본: 한 열 (그림 없을 때) */
-.hero-grid{position:relative;z-index:1;max-width:680px;margin:0 auto;padding:56px 20px 104px;display:grid;grid-template-columns:1fr;gap:28px;align-items:center}
+.hero-grid{position:relative;z-index:1;max-width:680px;margin:0 auto;padding:56px 20px 62px;display:grid;grid-template-columns:1fr;gap:28px;align-items:center}
 /* 그림 있을 때 (PC): 왼쪽 글 · 오른쪽 그림 */
-.hero.has-art .hero-grid{max-width:1160px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;padding:40px 32px 88px}
+.hero.has-art .hero-grid{max-width:1160px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;padding:40px 32px 62px}
 /* PC: 핵심 정보 4칸 한 줄 */
 .hero.has-art .facts{grid-template-columns:repeat(4,minmax(0,1fr))}
 .hero.has-art .facts > div{padding:10px 12px 9px;border-right:1px solid rgba(255,255,255,.18)}
@@ -109,12 +109,13 @@ h2::after{content:"";display:block;width:28px;height:4px;border-radius:2px;backg
 
 
 /* ---------- 마감 안내 배너 ---------- */
-.deadline-bar{position:relative;z-index:2;margin:0;background:var(--brand);color:#fff;font-weight:700;font-size:1rem;letter-spacing:-.01em;
-  display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;text-align:center}
-.deadline-bar .ic{width:1.15em;height:1.15em}
-.deadline-bar.over{background:var(--stop)}
-.hero.compact .deadline-bar{font-size:.88rem;padding:8px 20px}
-@media (max-width:560px){ .deadline-bar{font-size:.92rem;padding:10px 16px} }
+.deadline-bar{position:relative;z-index:3;margin:-32px 0 22px;background:var(--brand);color:#fff;font-weight:800;font-size:1.08rem;letter-spacing:-.02em;
+  border-radius:var(--r-sm);box-shadow:0 12px 30px rgba(9,86,255,.38);
+  display:flex;align-items:center;justify-content:center;gap:10px;padding:16px 22px;text-align:center}
+.deadline-bar .ic{width:1.2em;height:1.2em}
+.deadline-bar b{text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:2px}
+.deadline-bar.over{background:var(--stop);box-shadow:0 12px 30px rgba(200,55,45,.3)}
+@media (max-width:560px){ .deadline-bar{font-size:.96rem;padding:14px 16px;margin:-26px 0 18px} }
 
 /* ---------- 아이콘 ---------- */
 .ic{width:1.05em;height:1.05em;flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.16em}
@@ -133,7 +134,7 @@ h2::after{content:"";display:block;width:28px;height:4px;border-radius:2px;backg
 
 
 /* ---------- 본인 확인 카드 ---------- */
-.login-card{position:relative;z-index:2;margin-top:-56px;background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:26px}
+.login-card{position:relative;z-index:2;margin-top:0;background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:26px}
 .card-tips{list-style:none;margin:16px 0 0;padding:12px 14px;background:var(--paper);border-radius:var(--r-sm);font-size:.86rem;color:var(--muted)}
 .card-tips li{display:flex;gap:10px;padding:3px 0}
 .card-tips b{flex:none;width:66px;color:var(--brand-deep)}
@@ -269,7 +270,7 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
   .t-region{font-size:1.95rem}
 }
 @media (max-width:900px){
-  .hero.has-art .hero-grid{grid-template-columns:1fr;max-width:680px;padding:28px 20px 100px;gap:10px}
+  .hero.has-art .hero-grid{grid-template-columns:1fr;max-width:680px;padding:28px 20px 56px;gap:10px}
   .hero.has-art .hero-visual{order:-1}
   .hero.has-art .facts{grid-template-columns:1fr 1fr}
   .hero.has-art .facts > div{padding:10px 0 9px;border-right:0}
@@ -306,7 +307,6 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
 
 <header class="hero" id="hero">
   <div class="hero-bg" id="heroBg"></div>
-  <p class="deadline-bar" id="deadlineBar" hidden></p>
   <div class="hero-grid">
     <div class="hero-text">
       <!-- 로고(선택): 저장소 images/logo-white.svg 에 흰색(반전) 로고를 올리면 표시 -->
@@ -329,6 +329,7 @@ footer{color:var(--muted);font-size:.82rem;text-align:center;padding:18px 0 30px
 
   <!-- 1. 본인 확인 -->
   <section class="screen on" id="s-verify">
+   <p class="deadline-bar" id="deadlineBar" hidden></p>
    <div class="verify-grid">
     <div class="login-card">
       <h2>신청 대상 확인</h2>
