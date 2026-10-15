@@ -335,7 +335,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwYsk6l-NNv6ca51MjtNKRY
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 : 0;
-let D = null, timer = null;
+let D = null, L = null, listLoading = false, timer = null;
 let TOKEN = null;                 // 로그인 토큰: 메모리에만 보관 (새로고침·재접속 시 다시 로그인)
 let EXPIRES = 0;                  // 접속 만료 시각(ms)
 let clock = null;                 // 1초 간격 남은 시간 확인
@@ -357,10 +357,30 @@ async function call(action, payload = {}) {
   return json;
 }
 
+async function loadLists(force) {
+  if (listLoading || (L && !force)) return;
+  listLoading = true;
+  try {
+    const res = await call('adminLists', { token: TOKEN });
+    L = {
+      applicants: (res.applicants || []).map(withSession),
+      testApplicants: (res.testApplicants || []).map(a => Object.assign(withSession(a), { test: true })),
+      pendingList: res.pendingList || [],
+      issueRows: res.issueRows || {},
+    };
+    renderListParts();
+  } catch (e) {
+    if (e.code === 'AUTH_EXPIRED') logout(e.message);
+  } finally {
+    listLoading = false;
+  }
+}
+
 async function load() {
   try {
     D = await call('adminDashboard', { token: TOKEN });
     render();
+    if (L) loadLists(true);   // 이미 명단을 본 적 있으면 같이 갱신
   } catch (e) {
     if (e.code === 'AUTH_EXPIRED') logout(e.message);
     throw e;
@@ -380,10 +400,21 @@ function sessionsView() {
     return Object.assign({}, s, { applied, status });
   });
 }
+/* 명단은 요약과 따로 불러온다 (L). 아직 없으면 빈 배열 */
 const applicantsView = () => {
-  const base = (D && D.applicants) || [];
-  return withTest() ? base.concat((D && D.testApplicants) || []) : base;
+  const base = (L && L.applicants) || [];
+  return withTest() ? base.concat((L && L.testApplicants) || []) : base;
 };
+const sessionById = id => ((D && D.sessions) || []).find(s => s.id === id) || {};
+/* 전송량을 줄이려고 명단 행에는 과정ID만 담겨 온다 — 화면에서 과정 정보를 붙인다 */
+function withSession(a) {
+  const s = sessionById(a.sid);
+  return Object.assign({}, a, {
+    appliedAt: a.at || '', regionNo: s.regionNo || 0, region: s.region || '', venue: s.venue || '',
+    dateLabel: s.dateLabel || '', slot: s.slot || '', time: s.time || '',
+    sessionId: a.sid, changes: a.chg || 0, updatedAt: '',
+  });
+}
 
 function regionsOf(SV) {
   const map = new Map();
@@ -408,7 +439,7 @@ function ring(size, stroke, ratio, color) {
 const ringColor = (a, cap) => a >= cap && cap ? 'var(--stop)' : pct(a, cap) >= 80 ? 'var(--signal)' : 'url(#gmGrad)';
 
 /* ---------- 렌더 ---------- */
-const API_EXPECTED = '2026-10-15a';
+const API_EXPECTED = '2026-10-15b';
 function render() {
   if (!D || !D.sessions) return;   // 데이터가 아직 없으면 그리지 않는다
   // 배포된 Apps Script 가 예전 버전이면 숫자가 맞지 않으므로 먼저 알린다
@@ -418,14 +449,12 @@ function render() {
     `Apps Script가 예전 버전(${D.apiVersion || '버전 없음'})으로 배포되어 있습니다. ` +
     `운영하지 않는 차수 제외, 중복 신청 제외, 대상자 대비 참여율이 반영되지 않은 숫자입니다. ` +
     `Apps Script에서 [배포 > 배포 관리 > 연필 > 새 버전 > 배포]를 실행해 주세요.`;
-  const SV = sessionsView(), AV = applicantsView();
+  const SV = sessionsView();
   const cap = SV.reduce((a, s) => a + s.capacity, 0);
   const applied = SV.reduce((a, s) => a + s.applied, 0);
   const full = SV.filter(s => s.status === 'full').length;
   const hot = SV.filter(s => s.status === 'open' && pct(s.applied, s.capacity) >= 80).length;
-  const today = D.generatedAt.slice(0, 10);
-  const todayCount = AV.filter(a => a.appliedAt.slice(0, 10) === today).length;
-  const nTest = (D.testApplicants || []).length;
+  const nTest = D.testCount || 0;
 
   $('title').textContent = D.title + ' 신청 현황';
   $('stamp').textContent = '갱신 ' + D.generatedAt.slice(5, 16);
@@ -434,7 +463,7 @@ function render() {
   $('fTestLabel').textContent = `테스트 포함 (${nTest}건)`;
 
   // KPI — 도넛은 '신청 대상자 중 몇 명이 신청했는지'(참여율) 기준
-  const T = D.targets || { unique: 0, applied: AV.length, pending: 0, rows: 0, duplicates: [] };
+  const T = D.targets || { unique: 0, applied: 0, pending: 0, rows: 0, duplicates: 0 };
   const tTotal = T.unique || 0;
   const tApplied = withTest() ? T.applied + nTest : T.applied;
   const tPending = Math.max(tTotal - tApplied, 0);
@@ -445,6 +474,8 @@ function render() {
     <div class="stat go"><b class="num">${cap - applied}<small> 석</small></b><span>남은 좌석 (정원 ${cap}석)</span></div>
     <div class="stat warn"><b class="num">${hot}<small> 개</small></b><span>마감 임박 과정 (80% 이상)</span></div>
     <div class="stat stop"><b class="num">${full}<small> / ${SV.length}</small></b><span>정원 마감 과정</span></div>`;
+  $('tabAppliedN').textContent = tApplied;
+  $('tabPendingN').textContent = tPending;
   $('split').innerHTML = ['오전','오후'].map(slot => {
     const ss = SV.filter(s => s.slot === slot);
     const a = ss.reduce((x, s) => x + s.applied, 0), c = ss.reduce((x, s) => x + s.capacity, 0);
@@ -496,39 +527,56 @@ function render() {
   });
 
   renderAudit(T, tTotal, tApplied);
+  fillFilters();
+  renderListParts();
+  $('foot').textContent = `데이터 기준 ${D.generatedAt} · 1분마다 자동 갱신`;
+}
+
+/* 명단이 도착한 뒤에 그리는 부분 (추이·전시장·명단·미신청) */
+function renderListParts() {
+  if (!D) return;
+  if (!L) {
+    const wait = '<div class="empty">명단을 불러오는 중입니다…</div>';
+    $('trend').innerHTML = wait; $('dealers').innerHTML = wait;
+    $('appBody').innerHTML = `<tr><td colspan="9" class="empty">명단을 불러오는 중입니다…</td></tr>`;
+    $('pendBody').innerHTML = `<tr><td colspan="5" class="empty">명단을 불러오는 중입니다…</td></tr>`;
+    loadLists();
+    return;
+  }
+  const AV = applicantsView();
   renderTrend(AV);
   renderDealers(AV);
-  fillFilters();
   renderList();
   renderPending();
-  $('foot').textContent = `데이터 기준 ${D.generatedAt} · 1분마다 자동 갱신`;
 }
 
 /* 신청내역·대상자 명단의 이상 항목을 점검해 보여준다 */
 let auditOpen = null;
 function renderAudit(T, tTotal, tApplied) {
-  const I = D.issues || {};
+  const C = D.counts || {};
+  const R = (L && L.issueRows) || {};
   const items = [
-    { key: 'dup', n: (I.duplicate || []).length, label: '중복 신청 (집계 제외)', rows: I.duplicate },
-    { key: 'unknown', n: (I.unknown || []).length, label: '명단에 없는 신청', rows: I.unknown },
-    { key: 'name', n: (I.nameMismatch || []).length, label: '이름 불일치', rows: I.nameMismatch },
-    { key: 'session', n: (I.badSession || []).length, label: '과정 정보 불일치', rows: I.badSession },
-    { key: 'inactive', n: (I.inactiveSession || []).length, label: '미운영 차수 신청', rows: I.inactiveSession },
-    { key: 'tdup', n: (T.duplicates || []).length, label: '명단 중복 판매코드', rows: T.duplicates },
-    { key: 'plate', n: I.noPlate || 0, label: '차량번호 미입력', rows: null },
-  ];
+    { key: 'duplicate', n: C.duplicate || 0, label: '중복 신청 (집계 제외)' },
+    { key: 'unknown', n: C.unknown || 0, label: '명단에 없는 신청' },
+    { key: 'nameMismatch', n: C.nameMismatch || 0, label: '이름 불일치' },
+    { key: 'badSession', n: C.badSession || 0, label: '과정 정보 불일치' },
+    { key: 'inactiveSession', n: C.inactiveSession || 0, label: '미운영 차수 신청' },
+    { key: 'targetDupes', n: C.targetDupes || 0, label: '명단 중복 판매코드' },
+    { key: 'plate', n: C.noPlate || 0, label: '차량번호 미입력' },
+  ].map(it => Object.assign(it, { rows: it.key === 'plate' ? null : R[it.key] }));
   $('auditCard').hidden = false;
-  const off = I.offSessions || [];
+  const off = D.offSessions || [];
   $('auditNote').textContent =
-    `대상자 시트 ${T.rows}행 → 중복 제외 ${tTotal}명 · 신청내역 ${I.appsRows}행 → 유효 ${tApplied}건 · 취소 ${D.canceled}건 · 테스트 ${(D.testApplicants || []).length}건` +
+    `대상자 시트 ${T.rows}행 → 중복 제외 ${tTotal}명 · 신청내역 ${C.appsRows}행 → 유효 ${tApplied}건 · 취소 ${D.canceled}건 · 테스트 ${D.testCount || 0}건` +
     (off.length ? ` · 미운영 차수 ${off.length}개(${off.map(o => o.where).join(', ')})는 정원에서 제외` : '');
   $('auditList').innerHTML = items.map(it => `
     <div class="audit-item ${it.n ? (it.key === 'plate' ? '' : 'warn') : 'ok'}">
       <b>${it.n}</b>
-      <span>${it.label}${it.n && it.rows ? ` <a class="link" data-key="${it.key}">보기</a>` : ''}</span>
+      <span>${it.label}${it.n && it.key !== 'plate' ? ` <a class="link" data-key="${it.key}">보기</a>` : ''}</span>
     </div>`).join('');
   $('auditList').querySelectorAll('.link').forEach(el => el.onclick = () => {
     auditOpen = auditOpen === el.dataset.key ? null : el.dataset.key;
+    if (!L) { loadLists(); return; }
     showAuditDetail(items);
   });
   showAuditDetail(items);
@@ -547,9 +595,10 @@ function showAuditDetail(items) {
 
 /* ---------- 미신청자 ---------- */
 let listTab = 'applied';
-const pendingAll = () => (D && D.pendingList) || [];
+const pendingAll = () => (L && L.pendingList) || [];
 
 function switchTab(tab) {
+  if (!L) loadLists();
   listTab = tab;
   $('tabApplied').setAttribute('aria-selected', tab === 'applied');
   $('tabPending').setAttribute('aria-selected', tab === 'pending');
@@ -577,9 +626,8 @@ function groupBy(list, key) {
 }
 
 function renderPending() {
+  if (!L) return;
   const all = pendingAll();
-  $('tabPendingN').textContent = all.length;
-  $('tabAppliedN').textContent = applicantsView().length;
   if (listTab !== 'pending') return;
 
   // 분모: 대상자 전체 = 미신청 + 신청자 (소속지역은 신청자 쪽에 없으므로 전시장만 비율 계산)
@@ -711,6 +759,7 @@ $('loginForm').addEventListener('submit', async e => {
     if (res.sessions) { D = res; render(); }
     else await load();   // 예전 버전 서버: 대시보드를 따로 불러온다
     enter(res.session);
+    loadLists();         // 명단은 화면을 띄운 뒤 뒤에서 불러온다
   } catch (err) {
     TOKEN = null;
     console.error(err);
@@ -786,7 +835,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) tick
 /* 로그아웃: 서버 토큰 폐기 + 화면의 데이터 제거 */
 function logout(message) {
   if (TOKEN) call('adminLogout', { token: TOKEN }).catch(() => {});
-  TOKEN = null; D = null; EXPIRES = 0;
+  TOKEN = null; D = null; L = null; EXPIRES = 0;
   clearInterval(timer); clearInterval(clock);
   closeExtend();
   ['refresh','csv','logout','testWrap','sheetLink','sessionBox'].forEach(id => $(id).hidden = true);
