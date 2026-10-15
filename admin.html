@@ -168,6 +168,10 @@ h2.sec small{color:var(--muted);font-weight:500;font-size:.84rem}
 .audit-detail h4{margin:0;padding:10px 14px;font-size:.9rem;background:#F7F9FC;position:sticky;top:0}
 
 /* 명단 */
+.listtabs{display:flex;gap:8px;margin:0 0 12px}
+.ltab{border:1.5px solid var(--line);background:var(--white);border-radius:var(--pill);padding:7px 16px;font-size:.92rem;font-weight:700;cursor:pointer;color:var(--muted)}
+.ltab b{font-variant-numeric:tabular-nums;margin-left:6px}
+.ltab[aria-selected="true"]{background:var(--grad);border-color:transparent;color:#fff}
 .filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
 .filters select,.filters input{height:40px;border:1.5px solid var(--line);border-radius:var(--pill);padding:0 14px;background:var(--white)}
 .filters input{flex:1;min-width:200px}
@@ -284,17 +288,41 @@ footer{padding:30px 0;color:var(--muted);font-size:.82rem}
 
   <!-- 명단 -->
   <section class="block">
-    <h2 class="sec">신청자 명단 <small id="listCount"></small></h2>
-    <div class="filters">
-      <select id="fRegion" aria-label="지역"></select>
-      <select id="fSession" aria-label="과정"></select>
-      <input id="fQuery" placeholder="이름, 판매코드, 전시장, 연락처, 차량번호 검색" aria-label="검색">
-      <button class="clear" id="clearFilter" type="button">필터 해제</button>
+    <h2 class="sec">명단 <small id="listCount"></small></h2>
+    <div class="listtabs" role="tablist">
+      <button class="ltab" id="tabApplied" role="tab" aria-selected="true">신청자 <b id="tabAppliedN">0</b></button>
+      <button class="ltab" id="tabPending" role="tab" aria-selected="false">미신청자 <b id="tabPendingN">0</b></button>
     </div>
-    <div class="panel"><table>
-      <thead><tr><th>이름</th><th>판매코드</th><th>연락처</th><th>차량번호</th><th>지역</th><th>전시장명</th><th>과정</th><th>신청일시</th><th class="r">변경</th></tr></thead>
-      <tbody id="appBody"></tbody>
-    </table></div>
+
+    <div id="paneApplied">
+      <div class="filters">
+        <select id="fRegion" aria-label="지역"></select>
+        <select id="fSession" aria-label="과정"></select>
+        <input id="fQuery" placeholder="이름, 판매코드, 전시장, 연락처, 차량번호 검색" aria-label="검색">
+        <button class="clear" id="clearFilter" type="button">필터 해제</button>
+      </div>
+      <div class="panel"><table>
+        <thead><tr><th>이름</th><th>판매코드</th><th>연락처</th><th>차량번호</th><th>지역</th><th>전시장명</th><th>과정</th><th>신청일시</th><th class="r">변경</th></tr></thead>
+        <tbody id="appBody"></tbody>
+      </table></div>
+    </div>
+
+    <div id="panePending" hidden>
+      <div class="filters">
+        <select id="pArea" aria-label="소속지역"></select>
+        <select id="pDealer" aria-label="전시장"></select>
+        <input id="pQuery" placeholder="이름, 판매코드, 전시장, 연락처 검색" aria-label="검색">
+        <button class="clear" id="pClear" type="button">필터 해제</button>
+      </div>
+      <div class="grid-2" style="gap:16px">
+        <div class="card"><h2 class="sec">소속지역별 미신청 <small>인원 많은 순</small></h2><div id="pByArea"></div></div>
+        <div class="card"><h2 class="sec">전시장별 미신청 <small>상위 10곳</small></h2><div id="pByDealer"></div></div>
+      </div>
+      <div class="panel" style="margin-top:16px"><table>
+        <thead><tr><th>이름</th><th>판매코드</th><th>연락처</th><th>전시장명</th><th>소속지역</th></tr></thead>
+        <tbody id="pendBody"></tbody>
+      </table></div>
+    </div>
   </section>
 
   <footer id="foot"></footer>
@@ -472,6 +500,7 @@ function render() {
   renderDealers(AV);
   fillFilters();
   renderList();
+  renderPending();
   $('foot').textContent = `데이터 기준 ${D.generatedAt} · 1분마다 자동 갱신`;
 }
 
@@ -515,6 +544,84 @@ function showAuditDetail(items) {
     <table><thead><tr>${cols.map(c => `<th>${esc(LB[c] || c)}</th>`).join('')}</tr></thead>
     <tbody>${it.rows.map(r => `<tr>${cols.map(c => `<td>${esc(r[c])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
+
+/* ---------- 미신청자 ---------- */
+let listTab = 'applied';
+const pendingAll = () => (D && D.pendingList) || [];
+
+function switchTab(tab) {
+  listTab = tab;
+  $('tabApplied').setAttribute('aria-selected', tab === 'applied');
+  $('tabPending').setAttribute('aria-selected', tab === 'pending');
+  $('paneApplied').hidden = tab !== 'applied';
+  $('panePending').hidden = tab !== 'pending';
+  renderList();
+  renderPending();
+}
+$('tabApplied').onclick = () => switchTab('applied');
+$('tabPending').onclick = () => switchTab('pending');
+
+function pendingFiltered() {
+  const a = $('pArea').value, d = $('pDealer').value, q = $('pQuery').value.trim().toLowerCase();
+  return pendingAll()
+    .filter(p => (!a || p.area === a) && (!d || p.dealer === d))
+    .filter(p => !q || [p.name, p.code, p.dealer, p.phone, p.area].join(' ').toLowerCase().includes(q))
+    .sort((x, y) => (x.area || '').localeCompare(y.area || '') || (x.dealer || '').localeCompare(y.dealer || '') || x.name.localeCompare(y.name));
+}
+
+/* 소속지역·전시장별로 대상자 대비 미신청 인원을 센다 */
+function groupBy(list, key) {
+  const m = {};
+  list.forEach(x => { const k = x[key] || '(미기재)'; m[k] = (m[k] || 0) + 1; });
+  return m;
+}
+
+function renderPending() {
+  const all = pendingAll();
+  $('tabPendingN').textContent = all.length;
+  $('tabAppliedN').textContent = applicantsView().length;
+  if (listTab !== 'pending') return;
+
+  // 분모: 대상자 전체 = 미신청 + 신청자 (소속지역은 신청자 쪽에 없으므로 전시장만 비율 계산)
+  const appliedByDealer = groupBy(applicantsView(), 'dealer');
+  const pendByArea = groupBy(all, 'area');
+  const pendByDealer = groupBy(all, 'dealer');
+
+  const areas = Object.entries(pendByArea).sort((a, b) => b[1] - a[1]);
+  const maxA = areas.length ? areas[0][1] : 1;
+  $('pByArea').innerHTML = areas.length ? `<div class="hbars">${areas.map(([n, c]) => `
+      <div class="hbar"><span class="nm" title="${esc(n)}">${esc(n)}</span>
+      <span class="track"><i style="width:${c / maxA * 100}%;background:var(--signal)"></i></span><b>${c}</b></div>`).join('')}</div>`
+    : '<div class="empty">미신청자가 없습니다.</div>';
+
+  const dealers = Object.entries(pendByDealer).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const maxD = dealers.length ? dealers[0][1] : 1;
+  $('pByDealer').innerHTML = dealers.length ? `<div class="hbars">${dealers.map(([n, c]) => {
+      const applied = appliedByDealer[n] || 0;
+      return `<div class="hbar"><span class="nm" title="${esc(n)}">${esc(n)}</span>
+        <span class="track"><i style="width:${c / maxD * 100}%;background:var(--signal)"></i></span>
+        <b>${c}</b></div>`;
+    }).join('')}</div>` : '<div class="empty">미신청자가 없습니다.</div>';
+
+  // 필터 옵션
+  const area = $('pArea').value, dealer = $('pDealer').value;
+  $('pArea').innerHTML = '<option value="">전체 소속지역</option>' +
+    Object.keys(pendByArea).sort().map(a => `<option ${a === area ? 'selected' : ''} value="${esc(a)}">${esc(a)} (${pendByArea[a]})</option>`).join('');
+  $('pDealer').innerHTML = '<option value="">전체 전시장</option>' +
+    Object.keys(pendByDealer).sort().map(d => `<option ${d === dealer ? 'selected' : ''} value="${esc(d)}">${esc(d)} (${pendByDealer[d]})</option>`).join('');
+
+  const rows = pendingFiltered();
+  $('listCount').textContent = `미신청 ${rows.length}명 / 전체 ${all.length}명`;
+  $('pendBody').innerHTML = rows.length ? rows.map(p => `
+    <tr><td><b>${esc(p.name)}</b></td><td class="num">${esc(p.code)}</td><td class="num">${esc(p.phone)}</td>
+    <td>${esc(p.dealer)}</td><td>${esc(p.area)}</td></tr>`).join('')
+    : '<tr><td colspan="5" class="empty">조건에 맞는 미신청자가 없습니다.</td></tr>';
+}
+
+$('pArea').onchange = () => { $('pDealer').value = ''; renderPending(); };
+$('pDealer').onchange = renderPending;
+$('pQuery').oninput = renderPending;
+$('pClear').onclick = () => { $('pArea').value = ''; $('pDealer').value = ''; $('pQuery').value = ''; renderPending(); };
 
 function renderTrend(AV) {
   const by = {};
@@ -564,6 +671,7 @@ function filtered() {
 }
 
 function renderList() {
+  if (listTab !== 'applied') return;
   const rows = filtered();
   const fr = $('fRegion').value, fsId = $('fSession').value;
   const s = fsId && D.sessions.find(x => x.id === fsId);
@@ -695,12 +803,17 @@ $('refresh').onclick = () => load().catch(e => { if (e.code !== 'AUTH_EXPIRED') 
 $('logout').onclick = () => logout('로그아웃되었습니다.');
 
 $('csv').onclick = () => {
-  const head = ['신청번호','이름','판매코드','연락처','차량번호','지역','교육장','전시장명','일자','구분','교육시간','신청일시','변경횟수','최종변경일시','비고'];
-  const rows = filtered().map(a => [a.no, a.name, a.code, a.phone, a.plate, a.region, a.venue, a.dealer, a.dateLabel, a.slot, a.time, a.appliedAt, a.changes, a.updatedAt, a.test ? '테스트' : '']);
+  const pend = listTab === 'pending';
+  const head = pend
+    ? ['이름','판매코드','연락처','전시장명','소속지역']
+    : ['신청번호','이름','판매코드','연락처','차량번호','지역','교육장','전시장명','일자','구분','교육시간','신청일시','변경횟수','최종변경일시','비고'];
+  const rows = pend
+    ? pendingFiltered().map(p => [p.name, p.code, p.phone, p.dealer, p.area])
+    : filtered().map(a => [a.no, a.name, a.code, a.phone, a.plate, a.region, a.venue, a.dealer, a.dateLabel, a.slot, a.time, a.appliedAt, a.changes, a.updatedAt, a.test ? '테스트' : '']);
   const csv = '\uFEFF' + [head, ...rows].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = `교육신청명단_${D.generatedAt.slice(0, 10)}.csv`;
+  a.download = `${pend ? '미신청자명단' : '교육신청명단'}_${D.generatedAt.slice(0, 10)}.csv`;
   a.click();
 };
 
