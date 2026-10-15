@@ -339,7 +339,7 @@ async function load() {
 
 const withTest = () => $('fTest').checked;
 /* 운영 'N' 차수는 정원·집계·그래프에서 제외 (서버에서 걸러지지만 한 번 더 확인) */
-const liveSessions = () => (D.sessions || []).filter(s => s.active !== false);
+const liveSessions = () => ((D && D.sessions) || []).filter(s => s.active !== false);
 function sessionsView() {
   if (!withTest()) return liveSessions();
   const add = {};
@@ -350,7 +350,10 @@ function sessionsView() {
     return Object.assign({}, s, { applied, status });
   });
 }
-const applicantsView = () => withTest() ? D.applicants.concat(D.testApplicants || []) : D.applicants;
+const applicantsView = () => {
+  const base = (D && D.applicants) || [];
+  return withTest() ? base.concat((D && D.testApplicants) || []) : base;
+};
 
 function regionsOf(SV) {
   const map = new Map();
@@ -376,6 +379,7 @@ const ringColor = (a, cap) => a >= cap && cap ? 'var(--stop)' : pct(a, cap) >= 8
 
 /* ---------- 렌더 ---------- */
 function render() {
+  if (!D || !D.sessions) return;   // 데이터가 아직 없으면 그리지 않는다
   const SV = sessionsView(), AV = applicantsView();
   const cap = SV.reduce((a, s) => a + s.capacity, 0);
   const applied = SV.reduce((a, s) => a + s.applied, 0);
@@ -585,12 +589,16 @@ $('loginForm').addEventListener('submit', async e => {
   btn.disabled = true; btn.textContent = '불러오는 중…';
   try {
     const res = await call('adminLogin', { password: pw }); // 로그인 + 데이터 한 번에
-    TOKEN = res.token; D = res;
-    render();
+    TOKEN = res.token;
+    if (res.sessions) { D = res; render(); }
+    else await load();   // 예전 버전 서버: 대시보드를 따로 불러온다
     enter(res.session);
   } catch (err) {
     TOKEN = null;
-    $('loginErr').textContent = err.message;
+    console.error(err);
+    $('loginErr').textContent = err.code
+      ? err.message
+      : '현황을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요. (Apps Script 재배포가 필요할 수 있습니다)';
   } finally {
     btn.disabled = false; btn.textContent = '조회하기';
   }
