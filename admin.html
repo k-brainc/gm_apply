@@ -331,30 +331,39 @@ footer{padding:30px 0;color:var(--muted);font-size:.82rem}
 <script>
 /* ▼ Apps Script 웹 앱 배포 주소(/exec) */
 const API_URL = 'https://script.google.com/macros/s/AKfycbwYsk6l-NNv6ca51MjtNKRYHEptvWC_kKHBEfV60GSWWW8glM_BggJ9HSaFD6wX7Kt9/exec';
+const API_EXPECTED = '2026-10-16';     // Code.gs 의 API_VERSION 과 같아야 함
+const SESSION_SEC = 300, WARN_SEC = 60;
 
 const $ = id => document.getElementById(id);
-const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 : 0;
-let D = null, L = null, listLoading = false, timer = null;
-let TOKEN = null;                 // 로그인 토큰: 메모리에만 보관 (새로고침·재접속 시 다시 로그인)
-let EXPIRES = 0;                  // 접속 만료 시각(ms)
-let clock = null;                 // 1초 간격 남은 시간 확인
-const SESSION_SEC = 5 * 60;       // 기본 접속 시간 5분
-const WARN_SEC = 60;              // 만료 1분 전 연장 여부 확인
 
-// 이전 버전이 브라우저에 남긴 비밀번호 정리
-try { sessionStorage.removeItem('eduAdminPw'); } catch (_) {}
+let TOKEN = null, D = null, L = null;        // D: 요약, L: 명단
+let refreshTimer = null, clock = null, EXPIRES = 0, listLoading = false;
+let listTab = 'applied', auditOpen = null;
+
+try { sessionStorage.removeItem('eduAdminPw'); } catch (e) { /* 예전 버전 흔적 정리 */ }
 
 /* ---------- 서버 통신 ---------- */
-async function call(action, payload = {}) {
+async function call(action, payload) {
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action, ...payload }),
+    body: JSON.stringify(Object.assign({ action }, payload || {})),
   });
   const json = await res.json();
   if (!json.ok) throw Object.assign(new Error(json.message), { code: json.code });
   return json;
+}
+
+async function loadSummary() {
+  try {
+    D = await call('adminDashboard', { token: TOKEN });
+    render();
+    if (L) loadLists(true);
+  } catch (e) {
+    if (e.code === 'AUTH_EXPIRED') logout(e.message);
+  }
 }
 
 async function loadLists(force) {
@@ -362,13 +371,20 @@ async function loadLists(force) {
   listLoading = true;
   try {
     const res = await call('adminLists', { token: TOKEN });
-    L = {
-      applicants: (res.applicants || []).map(withSession),
-      testApplicants: (res.testApplicants || []).map(a => Object.assign(withSession(a), { test: true })),
-      pendingList: res.pendingList || [],
-      issueRows: res.issueRows || {},
+    const attach = (a, test) => {
+      const s = sessionById(a.sid);
+      return Object.assign({}, a, {
+        test, region: s.region || '', regionNo: s.regionNo || 0, venue: s.venue || '',
+        dateLabel: s.dateLabel || '', slot: s.slot || '', time: s.time || '',
+      });
     };
-    renderListParts();
+    L = {
+      applicants: (res.applicants || []).map(a => attach(a, false)),
+      tests: (res.testApplicants || []).map(a => attach(a, true)),
+      pending: res.pendingList || [],
+      issues: res.issueRows || {},
+    };
+    render();
   } catch (e) {
     if (e.code === 'AUTH_EXPIRED') logout(e.message);
   } finally {
@@ -376,50 +392,27 @@ async function loadLists(force) {
   }
 }
 
-async function load() {
-  try {
-    D = await call('adminDashboard', { token: TOKEN });
-    render();
-    if (L) loadLists(true);   // 이미 명단을 본 적 있으면 같이 갱신
-  } catch (e) {
-    if (e.code === 'AUTH_EXPIRED') logout(e.message);
-    throw e;
-  }
-}
-
+/* ---------- 집계 보조 ---------- */
 const withTest = () => $('fTest').checked;
-/* 운영 'N' 차수는 정원·집계·그래프에서 제외 (서버에서 걸러지지만 한 번 더 확인) */
-const liveSessions = () => ((D && D.sessions) || []).filter(s => s.active !== false);
+const sessionById = id => ((D && D.sessions) || []).filter(s => s.id === id)[0] || {};
+
+/** 테스트 포함 여부에 따라 과정별 인원 보정 */
 function sessionsView() {
-  if (!withTest()) return liveSessions();
+  const list = (D && D.sessions) || [];
+  if (!withTest() || !L || !L.tests.length) return list;
   const add = {};
-  (D.testApplicants || []).forEach(a => add[a.sessionId] = (add[a.sessionId] || 0) + 1);
-  return liveSessions().map(s => {
+  L.tests.forEach(a => { add[a.sid] = (add[a.sid] || 0) + 1; });
+  return list.map(s => {
     const applied = s.applied + (add[s.id] || 0);
-    const status = s.status === 'closed' ? 'closed' : applied >= s.capacity ? 'full' : 'open';
-    return Object.assign({}, s, { applied, status });
+    return Object.assign({}, s, { applied, status: s.status === 'closed' ? 'closed' : applied >= s.capacity ? 'full' : 'open' });
   });
 }
-/* 명단은 요약과 따로 불러온다 (L). 아직 없으면 빈 배열 */
-const applicantsView = () => {
-  const base = (L && L.applicants) || [];
-  return withTest() ? base.concat((L && L.testApplicants) || []) : base;
-};
-const sessionById = id => ((D && D.sessions) || []).find(s => s.id === id) || {};
-/* 전송량을 줄이려고 명단 행에는 과정ID만 담겨 온다 — 화면에서 과정 정보를 붙인다 */
-function withSession(a) {
-  const s = sessionById(a.sid);
-  return Object.assign({}, a, {
-    appliedAt: a.at || '', regionNo: s.regionNo || 0, region: s.region || '', venue: s.venue || '',
-    dateLabel: s.dateLabel || '', slot: s.slot || '', time: s.time || '',
-    sessionId: a.sid, changes: a.chg || 0, updatedAt: '',
-  });
-}
+const applicantsView = () => !L ? [] : (withTest() ? L.applicants.concat(L.tests) : L.applicants);
 
 function regionsOf(SV) {
   const map = new Map();
   SV.forEach(s => {
-    const r = map.get(s.region) || { no: s.regionNo, name: s.region, venue: s.venue, sessions: [], cap: 0, applied: 0 };
+    const r = map.get(s.region) || { no: s.regionNo, name: s.region, sessions: [], cap: 0, applied: 0 };
     r.sessions.push(s); r.cap += s.capacity; r.applied += s.applied;
     map.set(s.region, r);
   });
@@ -427,8 +420,6 @@ function regionsOf(SV) {
 }
 
 const level = s => s.status === 'closed' ? 'closed' : s.status === 'full' ? 'full' : pct(s.applied, s.capacity) >= 80 ? 'hi' : '';
-
-/* ---------- 도넛 ---------- */
 function ring(size, stroke, ratio, color) {
   const r = (size - stroke) / 2, c = 2 * Math.PI * r, v = Math.min(ratio, 1);
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
@@ -439,82 +430,103 @@ function ring(size, stroke, ratio, color) {
 const ringColor = (a, cap) => a >= cap && cap ? 'var(--stop)' : pct(a, cap) >= 80 ? 'var(--signal)' : 'url(#gmGrad)';
 
 /* ---------- 렌더 ---------- */
-const API_EXPECTED = '2026-10-15b';
 function render() {
-  if (!D || !D.sessions) return;   // 데이터가 아직 없으면 그리지 않는다
-  // 배포된 Apps Script 가 예전 버전이면 숫자가 맞지 않으므로 먼저 알린다
+  if (!D || !D.sessions) return;
+
   const stale = D.apiVersion !== API_EXPECTED;
   $('staleWarn').hidden = !stale;
   if (stale) $('staleWarn').textContent =
     `Apps Script가 예전 버전(${D.apiVersion || '버전 없음'})으로 배포되어 있습니다. ` +
-    `운영하지 않는 차수 제외, 중복 신청 제외, 대상자 대비 참여율이 반영되지 않은 숫자입니다. ` +
-    `Apps Script에서 [배포 > 배포 관리 > 연필 > 새 버전 > 배포]를 실행해 주세요.`;
+    `[배포 > 배포 관리 > 연필 > 새 버전 > 배포]를 실행해 주세요.`;
+
   const SV = sessionsView();
   const cap = SV.reduce((a, s) => a + s.capacity, 0);
-  const applied = SV.reduce((a, s) => a + s.applied, 0);
+  const seated = SV.reduce((a, s) => a + s.applied, 0);
   const full = SV.filter(s => s.status === 'full').length;
   const hot = SV.filter(s => s.status === 'open' && pct(s.applied, s.capacity) >= 80).length;
   const nTest = D.testCount || 0;
+  const T = D.targets;
+  const tTotal = T.unique;
+  const tApplied = withTest() ? T.applied + nTest : T.applied;
+  const tPending = Math.max(tTotal - T.applied, 0);
 
   $('title').textContent = D.title + ' 신청 현황';
-  $('stamp').textContent = '갱신 ' + D.generatedAt.slice(5, 16);
-  if (D.sheetUrl) $('sheetLink').href = D.sheetUrl;
-  $('sheetLink').hidden = !D.sheetUrl;
+  $('stamp').textContent = '갱신 ' + String(D.generatedAt || '').slice(5, 16);
+  if (D.sheetUrl) { $('sheetLink').href = D.sheetUrl; $('sheetLink').hidden = false; }
   $('fTestLabel').textContent = `테스트 포함 (${nTest}건)`;
+  $('tabAppliedN').textContent = tApplied;
+  $('tabPendingN').textContent = tPending;
 
-  // KPI — 도넛은 '신청 대상자 중 몇 명이 신청했는지'(참여율) 기준
-  const T = D.targets || { unique: 0, applied: 0, pending: 0, rows: 0, duplicates: 0 };
-  const tTotal = T.unique || 0;
-  const tApplied = withTest() ? T.applied + nTest : T.applied;
-  const tPending = Math.max(tTotal - tApplied, 0);
+  // KPI
   $('donut').innerHTML = ring(188, 18, tTotal ? tApplied / tTotal : 0, ringColor(tApplied, tTotal)) +
     `<div class="c"><b class="num">${pct(tApplied, tTotal)}%</b><span class="num">신청 ${tApplied} / 대상 ${tTotal}명</span></div>`;
   $('stats').innerHTML = `
     <div class="stat"><b class="num">${tPending}<small> 명</small></b><span>미신청 대상자</span></div>
-    <div class="stat go"><b class="num">${cap - applied}<small> 석</small></b><span>남은 좌석 (정원 ${cap}석)</span></div>
+    <div class="stat go"><b class="num">${cap - seated}<small> 석</small></b><span>남은 좌석 (정원 ${cap}석)</span></div>
     <div class="stat warn"><b class="num">${hot}<small> 개</small></b><span>마감 임박 과정 (80% 이상)</span></div>
     <div class="stat stop"><b class="num">${full}<small> / ${SV.length}</small></b><span>정원 마감 과정</span></div>`;
-  $('tabAppliedN').textContent = tApplied;
-  $('tabPendingN').textContent = tPending;
-  $('split').innerHTML = ['오전','오후'].map(slot => {
+  $('split').innerHTML = ['오전', '오후'].map(slot => {
     const ss = SV.filter(s => s.slot === slot);
     const a = ss.reduce((x, s) => x + s.applied, 0), c = ss.reduce((x, s) => x + s.capacity, 0);
-    return `<div class="split-row"><span class="lb">${slot}</span><span class="track"><i style="width:${Math.min(pct(a,c),100)}%"></i></span><span class="v num">${a} / ${c}명 · ${pct(a,c)}%</span></div>`;
+    return `<div class="split-row"><span class="lb">${slot}</span><span class="track"><i style="width:${Math.min(pct(a, c), 100)}%"></i></span><span class="v num">${a} / ${c}명 · ${pct(a, c)}%</span></div>`;
   }).join('');
-  const close = D.period.closeAt;
   $('periodText').textContent = (withTest() && nTest ? '테스트 신청 포함 수치 · ' : '') +
-    `신청 ${tApplied}명 · 좌석 배정 ${applied}석 · ` +
-    `신청 기간 ${D.period.openAt} ~ ${close} · 취소 ${D.canceled}건`;
+    `신청 ${tApplied}명 · 좌석 배정 ${seated}석 · 신청 기간 ${D.period.openAt} ~ ${D.period.closeAt} · 취소 ${D.canceled}건`;
 
-  // 좌석 타임라인
+  renderTimeline(SV);
+  renderRings(SV);
+  renderAudit(tTotal, tApplied);
+  fillFilters();
+
+  if (!L) {
+    const wait = '<div class="empty">명단을 불러오는 중입니다…</div>';
+    $('trend').innerHTML = wait; $('dealers').innerHTML = wait;
+    $('appBody').innerHTML = '<tr><td colspan="9" class="empty">명단을 불러오는 중입니다…</td></tr>';
+    $('pendBody').innerHTML = '<tr><td colspan="5" class="empty">명단을 불러오는 중입니다…</td></tr>';
+  } else {
+    const AV = applicantsView();
+    renderTrend(AV);
+    renderDealers(AV);
+    renderList();
+    renderPending();
+  }
+  $('foot').textContent = `데이터 기준 ${D.generatedAt} · 1분마다 자동 갱신`;
+}
+
+function renderTimeline(SV) {
   const fr = $('fRegion').value, fs = $('fSession').value;
   $('timeline').innerHTML = regionsOf(SV).map(r => {
     const days = [];
-    r.sessions.forEach(s => { let d = days.find(x => x.date === s.date); if (!d) days.push(d = { date: s.date, label: s.dateLabel, slots: [] }); d.slots.push(s); });
+    r.sessions.forEach(s => {
+      let d = days.filter(x => x.date === s.date)[0];
+      if (!d) days.push(d = { date: s.date, label: s.dateLabel, slots: [] });
+      d.slots.push(s);
+    });
     return `<div class="tl-region${fr === r.name ? ' sel' : ''}">
       <div class="tl-head" data-region="${esc(r.name)}"><b>${esc(r.name)}</b><span class="num">${r.applied}/${r.cap} · ${pct(r.applied, r.cap)}%</span></div>
-      <div class="tl-days">${days.map(d => `<div class="tl-day"><div class="tanks">${
-        ['오전','오후'].map(slot => {
-          const s = d.slots.find(x => x.slot === slot);
-          if (!s) return '';
-          const p = pct(s.applied, s.capacity);
-          return `<div class="tank-wrap">
-            <button class="tank ${level(s)}${p >= 88 && level(s) === '' ? ' onfill' : ''}${fs === s.id ? ' sel' : ''}" data-id="${esc(s.id)}" data-region="${esc(s.region)}"
-              aria-label="${esc(s.region)} ${esc(s.dateLabel)} ${slot} ${s.applied}/${s.capacity}명 ${p}%">
-              <span class="fill" style="height:${Math.min(p, 100)}%"></span><span class="pct">${Math.round(p)}%</span></button>
-            <div class="tank-lb"><b>${slot}</b>${s.applied}/${s.capacity}</div></div>`;
-        }).join('')}</div><div class="tl-date">${esc(d.label)}</div></div>`).join('')}</div></div>`;
+      <div class="tl-days">${days.map(d => `<div class="tl-day"><div class="tanks">${['오전', '오후'].map(slot => {
+        const s = d.slots.filter(x => x.slot === slot)[0];
+        if (!s) return '';
+        const p = pct(s.applied, s.capacity), lv = level(s);
+        return `<div class="tank-wrap">
+          <button class="tank ${lv}${p >= 88 && !lv ? ' onfill' : ''}${fs === s.id ? ' sel' : ''}" data-id="${esc(s.id)}" data-region="${esc(s.region)}"
+            aria-label="${esc(s.region)} ${esc(s.dateLabel)} ${slot} ${s.applied}/${s.capacity}명 ${p}%">
+            <span class="fill" style="height:${Math.min(p, 100)}%"></span><span class="pct">${Math.round(p)}%</span></button>
+          <div class="tank-lb"><b>${slot}</b>${s.applied}/${s.capacity}</div></div>`;
+      }).join('')}</div><div class="tl-date">${esc(d.label)}</div></div>`).join('')}</div></div>`;
   }).join('');
   $('timeline').querySelectorAll('.tank').forEach(b => b.onclick = () => {
     const same = $('fSession').value === b.dataset.id;
     $('fRegion').value = same ? '' : b.dataset.region;
     fillFilters();
     $('fSession').value = same ? '' : b.dataset.id;
-    render(); scrollToList();
+    switchTab('applied'); render(); scrollToList();
   });
   $('timeline').querySelectorAll('.tl-head').forEach(h => h.onclick = () => toggleRegion(h.dataset.region));
+}
 
-  // 지역 링
+function renderRings(SV) {
+  const fr = $('fRegion').value;
   $('rings').innerHTML = regionsOf(SV).map(r => `
     <div class="ring${fr === r.name ? ' sel' : ''}" role="button" tabindex="0" data-region="${esc(r.name)}">
       <div class="mini">${ring(78, 9, r.cap ? r.applied / r.cap : 0, ringColor(r.applied, r.cap))}<b>${Math.round(pct(r.applied, r.cap))}%</b></div>
@@ -525,58 +537,28 @@ function render() {
     el.onclick = () => toggleRegion(el.dataset.region);
     el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRegion(el.dataset.region); } };
   });
-
-  renderAudit(T, tTotal, tApplied);
-  fillFilters();
-  renderListParts();
-  $('foot').textContent = `데이터 기준 ${D.generatedAt} · 1분마다 자동 갱신`;
 }
 
-/* 명단이 도착한 뒤에 그리는 부분 (추이·전시장·명단·미신청) */
-function renderListParts() {
-  if (!D) return;
-  if (!L) {
-    const wait = '<div class="empty">명단을 불러오는 중입니다…</div>';
-    $('trend').innerHTML = wait; $('dealers').innerHTML = wait;
-    $('appBody').innerHTML = `<tr><td colspan="9" class="empty">명단을 불러오는 중입니다…</td></tr>`;
-    $('pendBody').innerHTML = `<tr><td colspan="5" class="empty">명단을 불러오는 중입니다…</td></tr>`;
-    loadLists();
-    return;
-  }
-  const AV = applicantsView();
-  renderTrend(AV);
-  renderDealers(AV);
-  renderList();
-  renderPending();
-}
-
-/* 신청내역·대상자 명단의 이상 항목을 점검해 보여준다 */
-let auditOpen = null;
-function renderAudit(T, tTotal, tApplied) {
-  const C = D.counts || {};
-  const R = (L && L.issueRows) || {};
+function renderAudit(tTotal, tApplied) {
+  const C = D.counts || {}, R = (L && L.issues) || {};
   const items = [
-    { key: 'duplicate', n: C.duplicate || 0, label: '중복 신청 (집계 제외)' },
-    { key: 'unknown', n: C.unknown || 0, label: '명단에 없는 신청' },
-    { key: 'nameMismatch', n: C.nameMismatch || 0, label: '이름 불일치' },
-    { key: 'badSession', n: C.badSession || 0, label: '과정 정보 불일치' },
-    { key: 'inactiveSession', n: C.inactiveSession || 0, label: '미운영 차수 신청' },
-    { key: 'targetDupes', n: C.targetDupes || 0, label: '명단 중복 판매코드' },
-    { key: 'plate', n: C.noPlate || 0, label: '차량번호 미입력' },
-  ].map(it => Object.assign(it, { rows: it.key === 'plate' ? null : R[it.key] }));
-  $('auditCard').hidden = false;
+    ['duplicate', '중복 신청 (집계 제외)'], ['unknown', '명단에 없는 신청'], ['nameMismatch', '이름 불일치'],
+    ['badSession', '과정 정보 불일치'], ['inactiveSession', '미운영 차수 신청'], ['targetDupes', '명단 중복 판매코드'],
+    ['noPlate', '차량번호 미입력'],
+  ].map(([key, label]) => ({ key, label, n: C[key] || 0, rows: key === 'noPlate' ? null : R[key] }));
+
   const off = D.offSessions || [];
+  $('auditCard').hidden = false;
   $('auditNote').textContent =
-    `대상자 시트 ${T.rows}행 → 중복 제외 ${tTotal}명 · 신청내역 ${C.appsRows}행 → 유효 ${tApplied}건 · 취소 ${D.canceled}건 · 테스트 ${D.testCount || 0}건` +
+    `대상자 시트 ${D.targets.rows}행 → 중복 제외 ${tTotal}명 · 신청내역 ${C.appsRows}행 → 유효 ${D.targets.applied}건 · 취소 ${D.canceled}건 · 테스트 ${D.testCount || 0}건` +
     (off.length ? ` · 미운영 차수 ${off.length}개(${off.map(o => o.where).join(', ')})는 정원에서 제외` : '');
   $('auditList').innerHTML = items.map(it => `
-    <div class="audit-item ${it.n ? (it.key === 'plate' ? '' : 'warn') : 'ok'}">
-      <b>${it.n}</b>
-      <span>${it.label}${it.n && it.key !== 'plate' ? ` <a class="link" data-key="${it.key}">보기</a>` : ''}</span>
+    <div class="audit-item ${it.n ? (it.key === 'noPlate' ? '' : 'warn') : 'ok'}">
+      <b>${it.n}</b><span>${it.label}${it.n && it.key !== 'noPlate' ? ` <a class="link" data-key="${it.key}">보기</a>` : ''}</span>
     </div>`).join('');
   $('auditList').querySelectorAll('.link').forEach(el => el.onclick = () => {
     auditOpen = auditOpen === el.dataset.key ? null : el.dataset.key;
-    if (!L) { loadLists(); return; }
+    if (!L) loadLists();
     showAuditDetail(items);
   });
   showAuditDetail(items);
@@ -584,7 +566,9 @@ function renderAudit(T, tTotal, tApplied) {
 
 function showAuditDetail(items) {
   const it = items.filter(x => x.key === auditOpen)[0];
-  if (!it || !it.rows || !it.rows.length) { $('auditDetail').innerHTML = ''; return; }
+  if (!it) { $('auditDetail').innerHTML = ''; return; }
+  if (!it.rows) { $('auditDetail').innerHTML = '<div class="empty">상세 내역을 불러오는 중입니다…</div>'; return; }
+  if (!it.rows.length) { $('auditDetail').innerHTML = ''; return; }
   const LB = { no:'신청번호', code:'판매코드', name:'이름', sessionId:'과정ID', appliedAt:'신청일시',
     row:'시트 행', where:'신청 과정', sheetName:'명단상 이름', count:'행 수' };
   const cols = Object.keys(it.rows[0]);
@@ -593,70 +577,87 @@ function showAuditDetail(items) {
     <tbody>${it.rows.map(r => `<tr>${cols.map(c => `<td>${esc(r[c])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 
-/* ---------- 미신청자 ---------- */
-let listTab = 'applied';
-const pendingAll = () => (L && L.pendingList) || [];
-
-function switchTab(tab) {
-  if (!L) loadLists();
-  listTab = tab;
-  $('tabApplied').setAttribute('aria-selected', tab === 'applied');
-  $('tabPending').setAttribute('aria-selected', tab === 'pending');
-  $('paneApplied').hidden = tab !== 'applied';
-  $('panePending').hidden = tab !== 'pending';
-  renderList();
-  renderPending();
-}
-$('tabApplied').onclick = () => switchTab('applied');
-$('tabPending').onclick = () => switchTab('pending');
-
-function pendingFiltered() {
-  const a = $('pArea').value, d = $('pDealer').value, q = $('pQuery').value.trim().toLowerCase();
-  return pendingAll()
-    .filter(p => (!a || p.area === a) && (!d || p.dealer === d))
-    .filter(p => !q || [p.name, p.code, p.dealer, p.phone, p.area].join(' ').toLowerCase().includes(q))
-    .sort((x, y) => (x.area || '').localeCompare(y.area || '') || (x.dealer || '').localeCompare(y.dealer || '') || x.name.localeCompare(y.name));
+function renderTrend(AV) {
+  const by = {};
+  AV.forEach(a => { const d = String(a.at || '').slice(0, 10); if (d) by[d] = (by[d] || 0) + 1; });
+  const days = Object.keys(by).sort().slice(-21);
+  $('trendNote').textContent = days.length ? `최근 ${days.length}일 · 누적 ${AV.length}명` : '';
+  if (!days.length) { $('trend').innerHTML = '<div class="empty">아직 신청이 없습니다.</div>'; return; }
+  const max = Math.max(...days.map(d => by[d]));
+  $('trend').innerHTML = `<div class="cols">${days.map(d =>
+      `<div class="col"><em>${by[d]}</em><i style="height:${by[d] / max * 100}%"></i></div>`).join('')}</div>
+    <div class="col-labels">${days.map(d => `<span>${+d.slice(5, 7)}/${+d.slice(8)}</span>`).join('')}</div>`;
 }
 
-/* 소속지역·전시장별로 대상자 대비 미신청 인원을 센다 */
-function groupBy(list, key) {
+function hbars(entries, color) {
+  if (!entries.length) return '<div class="empty">해당 인원이 없습니다.</div>';
+  const max = entries[0][1];
+  return `<div class="hbars">${entries.map(([n, c]) =>
+    `<div class="hbar"><span class="nm" title="${esc(n)}">${esc(n)}</span><span class="track"><i style="width:${c / max * 100}%${color ? ';background:' + color : ''}"></i></span><b>${c}</b></div>`).join('')}</div>`;
+}
+const countBy = (list, key) => {
   const m = {};
   list.forEach(x => { const k = x[key] || '(미기재)'; m[k] = (m[k] || 0) + 1; });
   return m;
+};
+const topN = (m, n) => Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, n);
+
+function renderDealers(AV) { $('dealers').innerHTML = hbars(topN(countBy(AV, 'dealer'), 10)); }
+
+/* ---------- 신청자 명단 ---------- */
+function fillFilters() {
+  const fr = $('fRegion').value, fs = $('fSession').value;
+  const live = (D && D.sessions) || [];
+  $('fRegion').innerHTML = '<option value="">전체 지역</option>' +
+    regionsOf(live).map(r => `<option ${r.name === fr ? 'selected' : ''} value="${esc(r.name)}">${esc(r.name)}</option>`).join('');
+  $('fSession').innerHTML = '<option value="">전체 과정</option>' +
+    live.filter(s => !fr || s.region === fr)
+      .map(s => `<option ${s.id === fs ? 'selected' : ''} value="${esc(s.id)}">${esc(s.region)} ${esc(s.dateLabel)} ${s.slot}</option>`).join('');
+}
+
+function filtered() {
+  const fr = $('fRegion').value, fs = $('fSession').value, q = $('fQuery').value.trim().toLowerCase();
+  return applicantsView()
+    .filter(a => (!fr || a.region === fr) && (!fs || a.sid === fs))
+    .filter(a => !q || [a.name, a.code, a.dealer, a.phone, a.plate].join(' ').toLowerCase().includes(q))
+    .sort((a, b) => a.regionNo - b.regionNo || a.sid.localeCompare(b.sid) || String(a.at).localeCompare(String(b.at)));
+}
+
+function renderList() {
+  if (listTab !== 'applied') return;
+  const rows = filtered();
+  const s = $('fSession').value && sessionById($('fSession').value);
+  const fr = $('fRegion').value;
+  $('listCount').textContent = (s && s.id ? `${s.region} ${s.dateLabel} ${s.slot} · ` : fr ? `${fr} · ` : '') + `${rows.length}명`;
+  $('appBody').innerHTML = rows.length ? rows.map(a => `
+    <tr>
+      <td><b>${esc(a.name)}</b>${a.test ? ' <span class="tag">테스트</span>' : ''}</td><td class="num">${esc(a.code)}</td><td class="num">${esc(a.phone)}</td>
+      <td class="num">${esc(a.plate || '-')}</td><td>${esc(a.region)}</td><td>${esc(a.dealer)}</td>
+      <td class="num">${esc(a.dateLabel)} ${esc(a.slot)}</td><td class="num">${esc(String(a.at).slice(5, 16))}</td>
+      <td class="r num">${a.chg || ''}</td>
+    </tr>`).join('')
+    : '<tr><td colspan="9" class="empty">조건에 맞는 신청자가 없습니다.</td></tr>';
+}
+
+/* ---------- 미신청자 ---------- */
+function pendingFiltered() {
+  const a = $('pArea').value, d = $('pDealer').value, q = $('pQuery').value.trim().toLowerCase();
+  return ((L && L.pending) || [])
+    .filter(p => (!a || p.area === a) && (!d || p.dealer === d))
+    .filter(p => !q || [p.name, p.code, p.dealer, p.phone, p.area].join(' ').toLowerCase().includes(q));
 }
 
 function renderPending() {
-  if (!L) return;
-  const all = pendingAll();
-  if (listTab !== 'pending') return;
-
-  // 분모: 대상자 전체 = 미신청 + 신청자 (소속지역은 신청자 쪽에 없으므로 전시장만 비율 계산)
-  const appliedByDealer = groupBy(applicantsView(), 'dealer');
-  const pendByArea = groupBy(all, 'area');
-  const pendByDealer = groupBy(all, 'dealer');
-
-  const areas = Object.entries(pendByArea).sort((a, b) => b[1] - a[1]);
-  const maxA = areas.length ? areas[0][1] : 1;
-  $('pByArea').innerHTML = areas.length ? `<div class="hbars">${areas.map(([n, c]) => `
-      <div class="hbar"><span class="nm" title="${esc(n)}">${esc(n)}</span>
-      <span class="track"><i style="width:${c / maxA * 100}%;background:var(--signal)"></i></span><b>${c}</b></div>`).join('')}</div>`
-    : '<div class="empty">미신청자가 없습니다.</div>';
-
-  const dealers = Object.entries(pendByDealer).sort((a, b) => b[1] - a[1]).slice(0, 10);
-  const maxD = dealers.length ? dealers[0][1] : 1;
-  $('pByDealer').innerHTML = dealers.length ? `<div class="hbars">${dealers.map(([n, c]) => {
-      const applied = appliedByDealer[n] || 0;
-      return `<div class="hbar"><span class="nm" title="${esc(n)}">${esc(n)}</span>
-        <span class="track"><i style="width:${c / maxD * 100}%;background:var(--signal)"></i></span>
-        <b>${c}</b></div>`;
-    }).join('')}</div>` : '<div class="empty">미신청자가 없습니다.</div>';
-
-  // 필터 옵션
+  if (listTab !== 'pending' || !L) return;
+  const all = L.pending;
+  const byArea = countBy(all, 'area'), byDealer = countBy(all, 'dealer');
+  $('pByArea').innerHTML = hbars(topN(byArea, 20), 'var(--signal)');
+  $('pByDealer').innerHTML = hbars(topN(byDealer, 10), 'var(--signal)');
   const area = $('pArea').value, dealer = $('pDealer').value;
   $('pArea').innerHTML = '<option value="">전체 소속지역</option>' +
-    Object.keys(pendByArea).sort().map(a => `<option ${a === area ? 'selected' : ''} value="${esc(a)}">${esc(a)} (${pendByArea[a]})</option>`).join('');
+    Object.keys(byArea).sort().map(a => `<option ${a === area ? 'selected' : ''} value="${esc(a)}">${esc(a)} (${byArea[a]})</option>`).join('');
   $('pDealer').innerHTML = '<option value="">전체 전시장</option>' +
-    Object.keys(pendByDealer).sort().map(d => `<option ${d === dealer ? 'selected' : ''} value="${esc(d)}">${esc(d)} (${pendByDealer[d]})</option>`).join('');
+    Object.keys(byDealer).sort().map(d => `<option ${d === dealer ? 'selected' : ''} value="${esc(d)}">${esc(d)} (${byDealer[d]})</option>`).join('');
 
   const rows = pendingFiltered();
   $('listCount').textContent = `미신청 ${rows.length}명 / 전체 ${all.length}명`;
@@ -666,120 +667,100 @@ function renderPending() {
     : '<tr><td colspan="5" class="empty">조건에 맞는 미신청자가 없습니다.</td></tr>';
 }
 
+function switchTab(tab) {
+  listTab = tab;
+  $('tabApplied').setAttribute('aria-selected', tab === 'applied');
+  $('tabPending').setAttribute('aria-selected', tab === 'pending');
+  $('paneApplied').hidden = tab !== 'applied';
+  $('panePending').hidden = tab !== 'pending';
+  if (!L) { loadLists(); return; }
+  renderList(); renderPending();
+}
+
+function toggleRegion(name) {
+  $('fRegion').value = $('fRegion').value === name ? '' : name;
+  $('fSession').value = '';
+  switchTab('applied'); render(); scrollToList();
+}
+function scrollToList() { $('listCount').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+
+/* ---------- 이벤트 ---------- */
+$('tabApplied').onclick = () => switchTab('applied');
+$('tabPending').onclick = () => switchTab('pending');
+$('fRegion').onchange = () => { $('fSession').value = ''; render(); };
+$('fSession').onchange = render;
+$('fQuery').oninput = renderList;
+$('clearFilter').onclick = () => { $('fRegion').value = ''; $('fSession').value = ''; $('fQuery').value = ''; render(); };
 $('pArea').onchange = () => { $('pDealer').value = ''; renderPending(); };
 $('pDealer').onchange = renderPending;
 $('pQuery').oninput = renderPending;
 $('pClear').onclick = () => { $('pArea').value = ''; $('pDealer').value = ''; $('pQuery').value = ''; renderPending(); };
 
-function renderTrend(AV) {
-  const by = {};
-  AV.forEach(a => { const d = a.appliedAt.slice(0, 10); if (d) by[d] = (by[d] || 0) + 1; });
-  const days = Object.keys(by).sort().slice(-21);
-  $('trendNote').textContent = days.length ? `최근 ${days.length}일 · 누적 ${AV.length}명` : '';
-  if (!days.length) { $('trend').innerHTML = '<div class="empty">아직 신청이 없습니다.</div>'; return; }
-  const max = Math.max(...days.map(d => by[d]));
-  $('trend').innerHTML = `<div class="cols">${days.map(d =>
-      `<div class="col"><em>${by[d]}</em><i style="height:${by[d] / max * 100}%"></i></div>`).join('')}</div>
-    <div class="col-labels">${days.map(d => `<span>${+d.slice(5,7)}/${+d.slice(8)}</span>`).join('')}</div>`;
-}
-
-function renderDealers(AV) {
-  const by = {};
-  AV.forEach(a => { const k = a.dealer || '(미기재)'; by[k] = (by[k] || 0) + 1; });
-  const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 10);
-  if (!top.length) { $('dealers').innerHTML = '<div class="empty">아직 신청이 없습니다.</div>'; return; }
-  const max = top[0][1];
-  $('dealers').innerHTML = `<div class="hbars">${top.map(([n, c]) =>
-    `<div class="hbar"><span class="nm" title="${esc(n)}">${esc(n)}</span><span class="track"><i style="width:${c / max * 100}%"></i></span><b>${c}</b></div>`).join('')}</div>`;
-}
-
-/* ---------- 필터 & 명단 ---------- */
-function toggleRegion(name) {
-  $('fRegion').value = $('fRegion').value === name ? '' : name;
-  $('fSession').value = '';
-  render(); scrollToList();
-}
-function scrollToList() { $('listCount').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-
-function fillFilters() {
-  const fr = $('fRegion').value, fs = $('fSession').value;
-  $('fRegion').innerHTML = '<option value="">전체 지역</option>' +
-    regionsOf(liveSessions()).map(r => `<option ${r.name === fr ? 'selected' : ''} value="${esc(r.name)}">${esc(r.name)}</option>`).join('');
-  $('fSession').innerHTML = '<option value="">전체 과정</option>' +
-    liveSessions().filter(s => !fr || s.region === fr)
-      .map(s => `<option ${s.id === fs ? 'selected' : ''} value="${esc(s.id)}">${esc(s.region)} ${esc(s.dateLabel)} ${s.slot}</option>`).join('');
-}
-
-function filtered() {
-  const fr = $('fRegion').value, fs = $('fSession').value, q = $('fQuery').value.trim().toLowerCase();
-  return applicantsView()
-    .filter(a => (!fr || a.region === fr) && (!fs || a.sessionId === fs))
-    .filter(a => !q || [a.name, a.code, a.dealer, a.phone, a.plate].join(' ').toLowerCase().includes(q))
-    .sort((a, b) => a.regionNo - b.regionNo || a.sessionId.localeCompare(b.sessionId) || a.appliedAt.localeCompare(b.appliedAt));
-}
-
-function renderList() {
-  if (listTab !== 'applied') return;
-  const rows = filtered();
-  const fr = $('fRegion').value, fsId = $('fSession').value;
-  const s = fsId && D.sessions.find(x => x.id === fsId);
-  $('listCount').textContent = (s ? `${s.region} ${s.dateLabel} ${s.slot} · ` : fr ? `${fr} · ` : '') + `${rows.length}명`;
-  $('appBody').innerHTML = rows.length ? rows.map(a => `
-    <tr>
-      <td><b>${esc(a.name)}</b>${a.test ? ' <span class="tag">테스트</span>' : ''}</td><td class="num">${esc(a.code)}</td><td class="num">${esc(a.phone)}</td><td class="num">${esc(a.plate || '-')}</td>
-      <td>${esc(a.region)}</td><td>${esc(a.dealer)}</td>
-      <td class="num">${esc(a.dateLabel)} ${esc(a.slot)}</td><td class="num">${esc(a.appliedAt.slice(5, 16))}</td>
-      <td class="r num">${a.changes || ''}</td>
-    </tr>`).join('')
-    : '<tr><td colspan="9" class="empty">조건에 맞는 신청자가 없습니다.</td></tr>';
-}
-
-$('fRegion').onchange = () => { $('fSession').value = ''; render(); };
-$('fSession').onchange = render;
-$('fQuery').oninput = renderList;
-$('clearFilter').onclick = () => { $('fRegion').value = ''; $('fSession').value = ''; $('fQuery').value = ''; render(); };
-
-try { const v = localStorage.getItem('eduAdminWithTest'); if (v !== null) $('fTest').checked = v === '1'; } catch (_) {}
+try { const v = localStorage.getItem('eduAdminWithTest'); if (v !== null) $('fTest').checked = v === '1'; } catch (e) { /* 무시 */ }
 $('fTest').onchange = () => {
-  try { localStorage.setItem('eduAdminWithTest', $('fTest').checked ? '1' : '0'); } catch (_) {}
+  try { localStorage.setItem('eduAdminWithTest', $('fTest').checked ? '1' : '0'); } catch (e) { /* 무시 */ }
   render();
 };
 
-/* ---------- 로그인 & 기타 ---------- */
+$('csv').onclick = () => {
+  const pend = listTab === 'pending';
+  const head = pend ? ['이름', '판매코드', '연락처', '전시장명', '소속지역']
+    : ['신청번호', '이름', '판매코드', '연락처', '차량번호', '지역', '교육장', '전시장명', '일자', '구분', '교육시간', '신청일시', '변경횟수', '비고'];
+  const rows = pend ? pendingFiltered().map(p => [p.name, p.code, p.phone, p.dealer, p.area])
+    : filtered().map(a => [a.no, a.name, a.code, a.phone, a.plate, a.region, a.venue, a.dealer, a.dateLabel, a.slot, a.time, a.at, a.chg, a.test ? '테스트' : '']);
+  const csv = '﻿' + [head].concat(rows).map(r => r.map(v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `${pend ? '미신청자명단' : '교육신청명단'}_${String(D.generatedAt).slice(0, 10)}.csv`;
+  a.click();
+};
+
+/* ---------- 로그인 · 접속 시간 ---------- */
 $('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
   const pw = $('pw').value;
-  $('pw').value = '';                     // 입력칸에 비밀번호를 남기지 않음
+  $('pw').value = '';
   $('loginErr').textContent = '';
-  const btn = e.submitter || $('loginForm').querySelector('button');
+  const btn = $('loginForm').querySelector('button');
   btn.disabled = true; btn.textContent = '불러오는 중…';
   try {
-    const res = await call('adminLogin', { password: pw }); // 로그인 + 데이터 한 번에
-    TOKEN = res.token;
-    if (res.sessions) { D = res; render(); }
-    else await load();   // 예전 버전 서버: 대시보드를 따로 불러온다
-    enter(res.session);
-    loadLists();         // 명단은 화면을 띄운 뒤 뒤에서 불러온다
+    const res = await call('adminLogin', { password: pw });   // 로그인 + 요약 한 번에
+    TOKEN = res.token; D = res; L = null;
+    enter(res.session || SESSION_SEC);
+    render();
+    loadLists();                                               // 명단은 화면을 띄운 뒤 뒤에서
   } catch (err) {
     TOKEN = null;
-    console.error(err);
-    $('loginErr').textContent = err.code
-      ? err.message
-      : '현황을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요. (Apps Script 재배포가 필요할 수 있습니다)';
+    $('loginErr').textContent = err.code ? err.message : '현황을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   } finally {
     btn.disabled = false; btn.textContent = '조회하기';
   }
 });
 
-function enter(sessionSec) {
+function enter(sec) {
   $('login').hidden = true; $('dash').hidden = false;
-  ['refresh','csv','logout','testWrap','sessionBox'].forEach(id => $(id).hidden = false);
-  clearInterval(timer);
-  timer = setInterval(() => load().catch(() => {}), 60000);
-  startSession(sessionSec || SESSION_SEC);
+  ['refresh', 'csv', 'logout', 'testWrap', 'sessionBox'].forEach(id => { $(id).hidden = false; });
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(loadSummary, 60000);
+  startSession(sec);
 }
 
-/* ---------- 접속 시간 관리 ---------- */
+function logout(message) {
+  if (TOKEN) call('adminLogout', { token: TOKEN }).catch(() => {});
+  TOKEN = null; D = null; L = null; EXPIRES = 0;
+  clearInterval(refreshTimer); clearInterval(clock);
+  closeExtend();
+  ['refresh', 'csv', 'logout', 'testWrap', 'sheetLink', 'sessionBox'].forEach(id => { $(id).hidden = true; });
+  $('sheetLink').href = '#';
+  $('dash').hidden = true; $('login').hidden = false;
+  ['timeline', 'rings', 'trend', 'dealers', 'appBody', 'pendBody', 'stats', 'donut', 'split', 'auditList', 'auditDetail']
+    .forEach(id => { $(id).innerHTML = ''; });
+  $('title').textContent = '교육신청 관리자'; $('stamp').textContent = '';
+  $('loginErr').textContent = message || '';
+  window.scrollTo(0, 0);
+  $('pw').focus();
+}
+
 function startSession(sec) {
   EXPIRES = Date.now() + sec * 1000;
   closeExtend();
@@ -788,12 +769,10 @@ function startSession(sec) {
   tick();
 }
 
-const mmss = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-
 function tick() {
   if (!TOKEN) return;
   const left = Math.max(0, Math.ceil((EXPIRES - Date.now()) / 1000));
-  $('sessionLeft').textContent = mmss(left);
+  $('sessionLeft').textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
   $('sessionBox').classList.toggle('warn', left <= WARN_SEC);
   if (left <= 0) return logout(`접속 시간(${SESSION_SEC / 60}분)이 지나 로그아웃되었습니다. 다시 로그인해 주세요.`);
   if (left <= WARN_SEC) {
@@ -804,12 +783,12 @@ function tick() {
 
 function openExtend() {
   const dlg = $('extendDlg');
-  if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
+  if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
   $('extendYes').focus();
 }
 function closeExtend() {
   const dlg = $('extendDlg');
-  if (dlg.open) { if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open'); }
+  if (dlg.open) { if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); }
 }
 
 async function extend() {
@@ -826,45 +805,12 @@ async function extend() {
 }
 
 $('extendYes').onclick = extend;
-$('extendNo').onclick = () => logout('로그아웃되었습니다.');
-$('extendDlg').addEventListener('cancel', e => e.preventDefault()); // Esc로 닫혀 방치되지 않게
 $('sessionExtend').onclick = extend;
-// 탭이 백그라운드였다가 돌아오면 즉시 남은 시간 확인
+$('extendNo').onclick = () => logout('로그아웃되었습니다.');
+$('extendDlg').addEventListener('cancel', e => e.preventDefault());
 document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
-
-/* 로그아웃: 서버 토큰 폐기 + 화면의 데이터 제거 */
-function logout(message) {
-  if (TOKEN) call('adminLogout', { token: TOKEN }).catch(() => {});
-  TOKEN = null; D = null; L = null; EXPIRES = 0;
-  clearInterval(timer); clearInterval(clock);
-  closeExtend();
-  ['refresh','csv','logout','testWrap','sheetLink','sessionBox'].forEach(id => $(id).hidden = true);
-  $('sheetLink').href = '#';
-  $('dash').hidden = true; $('login').hidden = false;
-  ['timeline','rings','trend','dealers','appBody','stats','donut','split'].forEach(id => $(id).innerHTML = '');
-  $('title').textContent = '교육신청 관리자'; $('stamp').textContent = '';
-  $('loginErr').textContent = message || '';
-  window.scrollTo(0, 0);
-  $('pw').focus();
-}
-
-$('refresh').onclick = () => load().catch(e => { if (e.code !== 'AUTH_EXPIRED') alert(e.message); });
+$('refresh').onclick = () => { loadSummary(); if (L) loadLists(true); };
 $('logout').onclick = () => logout('로그아웃되었습니다.');
-
-$('csv').onclick = () => {
-  const pend = listTab === 'pending';
-  const head = pend
-    ? ['이름','판매코드','연락처','전시장명','소속지역']
-    : ['신청번호','이름','판매코드','연락처','차량번호','지역','교육장','전시장명','일자','구분','교육시간','신청일시','변경횟수','최종변경일시','비고'];
-  const rows = pend
-    ? pendingFiltered().map(p => [p.name, p.code, p.phone, p.dealer, p.area])
-    : filtered().map(a => [a.no, a.name, a.code, a.phone, a.plate, a.region, a.venue, a.dealer, a.dateLabel, a.slot, a.time, a.appliedAt, a.changes, a.updatedAt, a.test ? '테스트' : '']);
-  const csv = '\uFEFF' + [head, ...rows].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = `${pend ? '미신청자명단' : '교육신청명단'}_${D.generatedAt.slice(0, 10)}.csv`;
-  a.click();
-};
 
 $('pw').focus();
 </script>
