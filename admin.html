@@ -338,11 +338,13 @@ async function load() {
 }
 
 const withTest = () => $('fTest').checked;
+/* 운영 'N' 차수는 정원·집계·그래프에서 제외 (서버에서 걸러지지만 한 번 더 확인) */
+const liveSessions = () => (D.sessions || []).filter(s => s.active !== false);
 function sessionsView() {
-  if (!withTest()) return D.sessions;
+  if (!withTest()) return liveSessions();
   const add = {};
   (D.testApplicants || []).forEach(a => add[a.sessionId] = (add[a.sessionId] || 0) + 1);
-  return D.sessions.map(s => {
+  return liveSessions().map(s => {
     const applied = s.applied + (add[s.id] || 0);
     const status = s.status === 'closed' ? 'closed' : applied >= s.capacity ? 'full' : 'open';
     return Object.assign({}, s, { applied, status });
@@ -468,12 +470,15 @@ function renderAudit(T, tTotal, tApplied) {
     { key: 'unknown', n: (I.unknown || []).length, label: '명단에 없는 신청', rows: I.unknown },
     { key: 'name', n: (I.nameMismatch || []).length, label: '이름 불일치', rows: I.nameMismatch },
     { key: 'session', n: (I.badSession || []).length, label: '과정 정보 불일치', rows: I.badSession },
+    { key: 'inactive', n: (I.inactiveSession || []).length, label: '미운영 차수 신청', rows: I.inactiveSession },
     { key: 'tdup', n: (T.duplicates || []).length, label: '명단 중복 판매코드', rows: T.duplicates },
     { key: 'plate', n: I.noPlate || 0, label: '차량번호 미입력', rows: null },
   ];
   $('auditCard').hidden = false;
+  const off = I.offSessions || [];
   $('auditNote').textContent =
-    `대상자 시트 ${T.rows}행 → 중복 제외 ${tTotal}명 · 신청내역 ${I.appsRows}행 → 유효 ${tApplied}건 · 취소 ${D.canceled}건 · 테스트 ${(D.testApplicants || []).length}건`;
+    `대상자 시트 ${T.rows}행 → 중복 제외 ${tTotal}명 · 신청내역 ${I.appsRows}행 → 유효 ${tApplied}건 · 취소 ${D.canceled}건 · 테스트 ${(D.testApplicants || []).length}건` +
+    (off.length ? ` · 미운영 차수 ${off.length}개(${off.map(o => o.where).join(', ')})는 정원에서 제외` : '');
   $('auditList').innerHTML = items.map(it => `
     <div class="audit-item ${it.n ? (it.key === 'plate' ? '' : 'warn') : 'ok'}">
       <b>${it.n}</b>
@@ -530,9 +535,9 @@ function scrollToList() { $('listCount').scrollIntoView({ behavior: 'smooth', bl
 function fillFilters() {
   const fr = $('fRegion').value, fs = $('fSession').value;
   $('fRegion').innerHTML = '<option value="">전체 지역</option>' +
-    regionsOf(D.sessions).map(r => `<option ${r.name === fr ? 'selected' : ''} value="${esc(r.name)}">${esc(r.name)}</option>`).join('');
+    regionsOf(liveSessions()).map(r => `<option ${r.name === fr ? 'selected' : ''} value="${esc(r.name)}">${esc(r.name)}</option>`).join('');
   $('fSession').innerHTML = '<option value="">전체 과정</option>' +
-    D.sessions.filter(s => !fr || s.region === fr)
+    liveSessions().filter(s => !fr || s.region === fr)
       .map(s => `<option ${s.id === fs ? 'selected' : ''} value="${esc(s.id)}">${esc(s.region)} ${esc(s.dateLabel)} ${s.slot}</option>`).join('');
 }
 
