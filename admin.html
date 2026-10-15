@@ -153,6 +153,18 @@ h2.sec small{color:var(--muted);font-weight:500;font-size:.84rem}
 .hbar .track i{display:block;height:100%;background:var(--grad);border-radius:6px}
 .hbar b{text-align:right;font-variant-numeric:tabular-nums}
 .empty{padding:28px;text-align:center;color:var(--muted);font-size:.9rem}
+.audit{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.audit-item{display:flex;gap:10px;align-items:baseline;border:1.5px solid var(--line);border-radius:var(--r-sm);padding:12px 14px;background:var(--white);cursor:default}
+.audit-item.warn{border-color:var(--signal);background:var(--signal-soft)}
+.audit-item.ok{border-color:#CFE6DA;background:#F2F9F5}
+.audit-item button{all:unset;cursor:pointer}
+.audit-item b{font-size:1.4rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.audit-item span{font-size:.84rem;color:var(--muted)}
+.audit-item.warn b{color:var(--signal)}
+.audit-item.ok b{color:var(--go)}
+.audit-item .link{color:var(--brand-deep);text-decoration:underline;font-size:.8rem;cursor:pointer}
+.audit-detail{margin-top:14px;border:1.5px solid var(--line);border-radius:var(--r-sm);overflow:auto;max-height:320px}
+.audit-detail h4{margin:0;padding:10px 14px;font-size:.9rem;background:#F7F9FC;position:sticky;top:0}
 
 /* 명단 */
 .filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
@@ -242,6 +254,13 @@ footer{padding:30px 0;color:var(--muted);font-size:.82rem}
       <span><i style="background:var(--stop)"></i>정원 마감</span>
       <span><i style="background:#9AA6B4"></i>신청 종료</span>
     </div>
+  </section>
+
+  <!-- 데이터 점검 -->
+  <section class="card block" id="auditCard" hidden>
+    <h2 class="sec">데이터 점검 <small id="auditNote"></small></h2>
+    <div class="audit" id="auditList"></div>
+    <div id="auditDetail"></div>
   </section>
 
   <!-- 지역별 -->
@@ -370,14 +389,18 @@ function render() {
   $('sheetLink').hidden = !D.sheetUrl;
   $('fTestLabel').textContent = `테스트 포함 (${nTest}건)`;
 
-  // KPI
-  $('donut').innerHTML = ring(188, 18, cap ? applied / cap : 0, ringColor(applied, cap)) +
-    `<div class="c"><b class="num">${pct(applied, cap)}%</b><span class="num">${applied} / ${cap}명</span></div>`;
+  // KPI — 도넛은 '신청 대상자 중 몇 명이 신청했는지'(참여율) 기준
+  const T = D.targets || { unique: 0, applied: AV.length, pending: 0, rows: 0, duplicates: [] };
+  const tTotal = T.unique || 0;
+  const tApplied = withTest() ? T.applied + nTest : T.applied;
+  const tPending = Math.max(tTotal - tApplied, 0);
+  $('donut').innerHTML = ring(188, 18, tTotal ? tApplied / tTotal : 0, ringColor(tApplied, tTotal)) +
+    `<div class="c"><b class="num">${pct(tApplied, tTotal)}%</b><span class="num">신청 ${tApplied} / 대상 ${tTotal}명</span></div>`;
   $('stats').innerHTML = `
-    <div class="stat go"><b class="num">${cap - applied}<small> 석</small></b><span>남은 좌석</span></div>
+    <div class="stat"><b class="num">${tPending}<small> 명</small></b><span>미신청 대상자</span></div>
+    <div class="stat go"><b class="num">${cap - applied}<small> 석</small></b><span>남은 좌석 (정원 ${cap}석)</span></div>
     <div class="stat warn"><b class="num">${hot}<small> 개</small></b><span>마감 임박 과정 (80% 이상)</span></div>
-    <div class="stat stop"><b class="num">${full}<small> / ${SV.length}</small></b><span>정원 마감 과정</span></div>
-    <div class="stat"><b class="num">${todayCount}<small> 명</small></b><span>오늘 신청</span></div>`;
+    <div class="stat stop"><b class="num">${full}<small> / ${SV.length}</small></b><span>정원 마감 과정</span></div>`;
   $('split').innerHTML = ['오전','오후'].map(slot => {
     const ss = SV.filter(s => s.slot === slot);
     const a = ss.reduce((x, s) => x + s.applied, 0), c = ss.reduce((x, s) => x + s.capacity, 0);
@@ -385,6 +408,7 @@ function render() {
   }).join('');
   const close = D.period.closeAt;
   $('periodText').textContent = (withTest() && nTest ? '테스트 신청 포함 수치 · ' : '') +
+    `신청 ${tApplied}명 · 좌석 배정 ${applied}석 · ` +
     `신청 기간 ${D.period.openAt} ~ ${close} · 취소 ${D.canceled}건`;
 
   // 좌석 타임라인
@@ -427,11 +451,50 @@ function render() {
     el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRegion(el.dataset.region); } };
   });
 
+  renderAudit(T, tTotal, tApplied);
   renderTrend(AV);
   renderDealers(AV);
   fillFilters();
   renderList();
   $('foot').textContent = `데이터 기준 ${D.generatedAt} · 1분마다 자동 갱신`;
+}
+
+/* 신청내역·대상자 명단의 이상 항목을 점검해 보여준다 */
+let auditOpen = null;
+function renderAudit(T, tTotal, tApplied) {
+  const I = D.issues || {};
+  const items = [
+    { key: 'dup', n: (I.duplicate || []).length, label: '중복 신청 (집계 제외)', rows: I.duplicate },
+    { key: 'unknown', n: (I.unknown || []).length, label: '명단에 없는 신청', rows: I.unknown },
+    { key: 'name', n: (I.nameMismatch || []).length, label: '이름 불일치', rows: I.nameMismatch },
+    { key: 'session', n: (I.badSession || []).length, label: '과정 정보 불일치', rows: I.badSession },
+    { key: 'tdup', n: (T.duplicates || []).length, label: '명단 중복 판매코드', rows: T.duplicates },
+    { key: 'plate', n: I.noPlate || 0, label: '차량번호 미입력', rows: null },
+  ];
+  $('auditCard').hidden = false;
+  $('auditNote').textContent =
+    `대상자 시트 ${T.rows}행 → 중복 제외 ${tTotal}명 · 신청내역 ${I.appsRows}행 → 유효 ${tApplied}건 · 취소 ${D.canceled}건 · 테스트 ${(D.testApplicants || []).length}건`;
+  $('auditList').innerHTML = items.map(it => `
+    <div class="audit-item ${it.n ? (it.key === 'plate' ? '' : 'warn') : 'ok'}">
+      <b>${it.n}</b>
+      <span>${it.label}${it.n && it.rows ? ` <a class="link" data-key="${it.key}">보기</a>` : ''}</span>
+    </div>`).join('');
+  $('auditList').querySelectorAll('.link').forEach(el => el.onclick = () => {
+    auditOpen = auditOpen === el.dataset.key ? null : el.dataset.key;
+    showAuditDetail(items);
+  });
+  showAuditDetail(items);
+}
+
+function showAuditDetail(items) {
+  const it = items.filter(x => x.key === auditOpen)[0];
+  if (!it || !it.rows || !it.rows.length) { $('auditDetail').innerHTML = ''; return; }
+  const LB = { no:'신청번호', code:'판매코드', name:'이름', sessionId:'과정ID', appliedAt:'신청일시',
+    row:'시트 행', where:'신청 과정', sheetName:'명단상 이름', count:'행 수' };
+  const cols = Object.keys(it.rows[0]);
+  $('auditDetail').innerHTML = `<div class="audit-detail"><h4>${it.label} ${it.rows.length}건</h4>
+    <table><thead><tr>${cols.map(c => `<th>${esc(LB[c] || c)}</th>`).join('')}</tr></thead>
+    <tbody>${it.rows.map(r => `<tr>${cols.map(c => `<td>${esc(r[c])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 
 function renderTrend(AV) {
